@@ -3,1283 +3,734 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>مستشفى سينا كلينيك - شؤون العاملين</title>
+    <title>منظومة الموارد البشرية والأجور - مستشفى سينا كلينيك</title>
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Supabase JS Client CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body { font-family: 'Cairo', sans-serif; }
         @media print {
-            header, nav, .no-print, #loginOverlay, #section-employees, #section-advances, #section-leaves, #section-penalties, #section-settlement, #section-users { display: none !important; }
-            body { background: white !important; color: black !important; padding: 0 !important; }
-            main { max-width: 100% !important; padding: 0 !important; margin: 0 !important; }
-            .print-area { display: block !important; }
-            #payslipPrintArea { display: block !important; border: 2px solid #111827 !important; }
+            body * {
+                visibility: hidden;
+            }
+            .print-area, .print-area * {
+                visibility: visible;
+            }
+            .print-area {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                margin: 0;
+                padding: 15px;
+            }
+            .no-print {
+                display: none !important;
+            }
         }
     </style>
 </head>
-<body class="bg-gray-50 text-gray-800 min-h-screen">
-
-    <script>
-        const SUPABASE_URL = "https://jwmwolryjonpuqdnqqjm.supabase.co";
-        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp3bXdvbHJ5am9ucHVxZG5xcWptIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk0NzEyODcsImV4cCI6MjEwNTA0NzI4N30.E_3bPtIndledD9zEdQJKdqwWh1cCNEG7aGgZtV1Reno";
-        const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-        const REQUIRED_DOCS = [
-            "بطاقة الرقم القومي",
-            "أصل المؤهل الدراسي",
-            "شهادة الميلاد كمبيوتر",
-            "الموقف من التجنيد",
-            "فيش وتشبيه حديث موجه للمستشفى",
-            "كعب عمل + برنت تأمينات",
-            "ترخيص مزاولة المهنة / كارنيه النقابة",
-            "شهادة صحية سارية"
-        ];
-
-        let currentUser = null;
-        let currentEmpId = null;
-        let allEmployees = [];
-        let allUsers = [];
-    </script>
+<body class="bg-gray-100 text-gray-800 font-sans min-h-screen">
 
     <!-- شاشة تسجيل الدخول -->
-    <div id="loginOverlay" class="fixed inset-0 bg-teal-950 bg-opacity-95 flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 border border-teal-800 text-right">
+    <div id="loginOverlay" class="fixed inset-0 bg-teal-950 bg-opacity-95 flex items-center justify-center z-50">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md border-t-8 border-teal-700">
             <div class="text-center mb-6">
-                <h2 class="text-2xl font-bold text-teal-900">مستشفى سينا كلينيك</h2>
-                <p class="text-sm text-gray-500 mt-1">منظومة شؤون العاملين والأجور والرقابة</p>
-                <span class="inline-block mt-2 text-xs bg-teal-100 text-teal-800 px-3 py-1 rounded-full font-bold">تسجيل الدخول</span>
+                <h1 class="text-2xl font-black text-teal-950">مستشفى سينا كلينيك</h1>
+                <p class="text-xs text-gray-500 font-semibold mt-1">شرم الشيخ - منظومة شؤون العاملين والأجور</p>
             </div>
-            <form onsubmit="handleLogin(event)" class="space-y-4">
+            <form id="loginForm" onsubmit="handleLogin(event)" class="space-y-4">
                 <div>
-                    <label class="block text-sm font-semibold mb-1 text-gray-700">اسم المستخدم</label>
-                    <input type="text" id="login_username" required class="w-full border p-2.5 rounded-lg focus:ring-2 focus:ring-teal-600 outline-none" placeholder="admin أو hr_officer...">
+                    <label class="block text-xs font-bold text-gray-700 mb-1">اسم المستخدم</label>
+                    <input type="text" id="loginUsername" required class="w-full border p-2.5 rounded-lg text-sm focus:ring-2 focus:ring-teal-600 outline-none">
                 </div>
                 <div>
-                    <label class="block text-sm font-semibold mb-1 text-gray-700">كلمة المرور</label>
-                    <input type="password" id="login_password" required class="w-full border p-2.5 rounded-lg focus:ring-2 focus:ring-teal-600 outline-none" placeholder="••••••">
+                    <label class="block text-xs font-bold text-gray-700 mb-1">كلمة المرور</label>
+                    <input type="password" id="loginPassword" required class="w-full border p-2.5 rounded-lg text-sm focus:ring-2 focus:ring-teal-600 outline-none">
                 </div>
-                <button type="submit" class="w-full bg-teal-700 text-white py-3 rounded-lg font-bold hover:bg-teal-800 transition shadow-lg">دخول المنظومة</button>
+                <div id="loginError" class="text-red-600 text-xs font-bold hidden text-center">بيانات الدخول غير صحيحة</div>
+                <button type="submit" class="w-full bg-teal-800 hover:bg-teal-900 text-white font-bold py-2.5 rounded-lg transition text-sm">تسجيل الدخول</button>
             </form>
         </div>
     </div>
 
-    <!-- شريط الرأس -->
-    <header class="bg-teal-800 text-white p-4 shadow-md flex flex-wrap justify-between items-center px-8 gap-4 no-print">
-        <div>
-            <h1 class="text-2xl font-bold">مستشفى سينا كلينيك - شرم الشيخ</h1>
-            <div class="flex items-center gap-3 mt-1">
-                <span id="userBadge" class="text-xs bg-teal-900 text-teal-200 px-3 py-0.5 rounded-full font-semibold">غير مسجل</span>
-                <button onclick="handleLogout()" class="text-xs text-red-200 hover:text-red-100 underline">تسجيل الخروج</button>
+    <!-- ترويسة البرنامج الرئيسية -->
+    <header class="bg-teal-900 text-white shadow-md no-print sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-2">
+            <div class="flex items-center gap-3">
+                <div class="bg-teal-800 p-2 rounded-lg"><i class="fa-solid fa-hospital text-xl text-teal-200"></i></div>
+                <div>
+                    <h1 class="text-lg font-black tracking-wide">مستشفى سينا كلينيك - شرم الشيخ</h1>
+                    <div class="text-xs text-teal-300 font-medium">المدير المالي والإداري (ADMIN) | <button onclick="handleLogout()" class="underline hover:text-white">تسجيل الخروج</button></div>
+                </div>
             </div>
-        </div>
-        <div class="flex flex-wrap gap-2" id="navTabs">
-            <button onclick="switchTab('employees')" id="tab-emp" class="bg-teal-600 px-3 py-2 rounded-lg font-semibold hover:bg-teal-500 transition text-sm">سجل العاملين</button>
-            <button onclick="switchTab('advances')" id="tab-adv" class="bg-teal-700 px-3 py-2 rounded-lg font-semibold hover:bg-teal-500 transition text-sm">إدارة السلف</button>
-            <button onclick="switchTab('leaves')" id="tab-lea" class="bg-teal-700 px-3 py-2 rounded-lg font-semibold hover:bg-teal-500 transition text-sm">الإجازات</button>
-            <button onclick="switchTab('penalties')" id="tab-pen" class="bg-teal-700 px-3 py-2 rounded-lg font-semibold hover:bg-teal-500 transition text-sm">الجزاءات والإنذارات</button>
-            <button onclick="switchTab('payroll')" id="tab-pay" class="bg-teal-700 px-3 py-2 rounded-lg font-semibold hover:bg-teal-500 transition text-sm">مسير الرواتب (يوم 28)</button>
-            <button onclick="switchTab('settlement')" id="tab-set" class="bg-teal-700 px-3 py-2 rounded-lg font-semibold hover:bg-teal-500 transition text-sm">تسوية المؤقتين</button>
-            <button onclick="switchTab('reports')" id="tab-rep" class="bg-amber-600 px-3 py-2 rounded-lg font-bold hover:bg-amber-500 transition text-sm">التقارير والكشوف</button>
-            <button onclick="switchTab('users')" id="tab-usr" class="bg-purple-700 px-3 py-2 rounded-lg font-bold hover:bg-purple-600 transition text-sm hidden">المستخدمين والصلاحيات ⚙️</button>
+            <!-- أزرار التنقل الرئيسية -->
+            <nav class="flex flex-wrap gap-1 text-xs font-bold">
+                <button onclick="switchTab('employees')" id="btn-employees" class="px-3 py-2 rounded-lg bg-teal-800 hover:bg-teal-700 transition">سجل العاملين</button>
+                <button onclick="switchTab('advances')" id="btn-advances" class="px-3 py-2 rounded-lg hover:bg-teal-700 transition">إدارة السلف</button>
+                <button onclick="switchTab('leaves')" id="btn-leaves" class="px-3 py-2 rounded-lg hover:bg-teal-700 transition">الإجازات</button>
+                <button onclick="switchTab('penalties')" id="btn-penalties" class="px-3 py-2 rounded-lg hover:bg-teal-700 transition">الجزاءات والإنذارات</button>
+                <button onclick="switchTab('payroll')" id="btn-payroll" class="px-3 py-2 rounded-lg hover:bg-teal-700 transition">مسير الرواتب (يوم 28)</button>
+                <button onclick="switchTab('reports')" id="btn-reports" class="px-3 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 transition text-white">التقارير والكشوف</button>
+                <button onclick="switchTab('users')" id="btn-users" class="px-3 py-2 rounded-lg bg-purple-700 hover:bg-purple-800 transition text-white">المستخدمين والصلاحيات ⚙️</button>
+            </nav>
         </div>
     </header>
 
-    <main class="max-w-7xl mx-auto p-6">
+    <!-- محتوى المنظومة -->
+    <main class="max-w-7xl mx-auto p-4 md:p-6">
 
-        <!-- القسم 1: سجل العاملين -->
-        <section id="section-employees" class="block no-print">
-            <div id="deptControlBox" class="bg-white p-4 rounded-xl shadow mb-6 flex flex-wrap justify-between items-center gap-4">
-                <div>
-                    <h3 class="font-bold text-teal-900">الهيكل التنظيمي وأقسام المستشفى</h3>
-                    <p class="text-xs text-gray-500">إضافة أو مراجعة أقسام ومراكز التكلفة</p>
+        <!-- تبويب: سجل العاملين -->
+        <section id="section-employees" class="space-y-6">
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
+                <div class="flex justify-between items-center border-b pb-3 mb-4">
+                    <h2 class="text-base font-black text-teal-950">بيانات الكادر الطبي والإداري</h2>
+                    <button onclick="toggleEmployeeModal()" class="bg-teal-700 text-white text-xs font-bold px-3 py-2 rounded-lg hover:bg-teal-800 transition">+ إضافة موظف جديد</button>
                 </div>
-                <div class="flex gap-2">
-                    <input type="text" id="new_dept_name" placeholder="اسم القسم الجديد..." class="border p-2 rounded text-sm w-64">
-                    <button onclick="addNewDepartment()" class="bg-teal-700 text-white px-4 py-2 rounded font-bold text-sm hover:bg-teal-800">إضافة قسم</button>
-                </div>
-            </div>
-
-            <div id="empFormContainer" class="bg-white p-6 rounded-xl shadow mb-8">
-                <div class="flex justify-between items-center border-b pb-2 mb-4">
-                    <h2 class="text-xl font-bold text-teal-900" id="empFormTitle">إضافة موظف جديد واستيفاء العقد</h2>
-                    <span id="editModeIndicator" class="hidden text-xs bg-blue-100 text-blue-800 font-bold px-3 py-1 rounded-full">وضع التعديل نشط</span>
-                </div>
-                <form id="empForm" class="space-y-4" onsubmit="handleEmployeeSubmit(event)">
-                    <input type="hidden" id="editing_emp_id" value="">
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        <div><label class="block text-xs font-bold text-gray-700 mb-1">كود الموظف</label><input type="text" id="emp_code" required class="w-full border p-2 rounded text-sm"></div>
-                        <div><label class="block text-xs font-bold text-gray-700 mb-1">الاسم بالكامل</label><input type="text" id="full_name" required class="w-full border p-2 rounded text-sm"></div>
-                        <div><label class="block text-xs font-bold text-gray-700 mb-1">الرقم القومي (14 رقم)</label><input type="text" id="national_id" maxlength="14" class="w-full border p-2 rounded text-sm"></div>
-                        <div><label class="block text-xs font-bold text-gray-700 mb-1">القسم / الإدارة</label><select id="dept_id" class="w-full border p-2 rounded text-sm"></select></div>
-                        <div><label class="block text-xs font-bold text-gray-700 mb-1">المسمى الوظيفي</label><input type="text" id="job_title" required class="w-full border p-2 rounded text-sm"></div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-700 mb-1">نوع التعيين</label>
-                            <select id="emp_type" class="w-full border p-2 rounded text-sm">
-                                <option value="PERMANENT">موظف دائم (مرتب شهري)</option>
-                                <option value="TEMPORARY">عمالة مؤقتة / يوميات</option>
-                                <option value="VISITING_DOCTOR">طبيب زائر / استشاري</option>
-                            </select>
-                        </div>
-                        <div><label class="block text-xs font-bold text-gray-700 mb-1">تاريخ استلام العمل</label><input type="date" id="hire_date" required class="w-full border p-2 rounded text-sm"></div>
-                        <div><label class="block text-xs font-bold text-gray-700 mb-1">تاريخ الميلاد</label><input type="date" id="birth_date" class="w-full border p-2 rounded text-sm"></div>
-                        <div><label class="block text-xs font-bold text-gray-700 mb-1">رقم الهاتف المحمول</label><input type="text" id="phone" class="w-full border p-2 rounded text-sm" placeholder="01xxxxxxxxx"></div>
-                        <div><label class="block text-xs font-bold text-gray-700 mb-1">المؤهل الدراسي</label><input type="text" id="education_qualification" class="w-full border p-2 rounded text-sm"></div>
-                        <div class="md:col-span-2"><label class="block text-xs font-bold text-gray-700 mb-1">محل الإقامة / العنوان</label><input type="text" id="address" class="w-full border p-2 rounded text-sm"></div>
-                    </div>
-
-                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                        <h4 class="font-bold text-teal-900 text-sm mb-3">بيانات الأجر والبدلات الشهرية الثابتة:</h4>
-                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            <div><label class="block text-xs font-bold text-gray-700 mb-1">الراتب الأساسي (ج.م)</label><input type="number" id="basic_salary" step="0.01" required class="w-full border p-2 rounded text-sm font-bold text-teal-900"></div>
-                            <div><label class="block text-xs font-bold text-amber-900 mb-1">الأجر الشامل (ج.م)</label><input type="number" id="gross_salary" step="0.01" class="w-full border p-2 rounded text-sm font-bold text-amber-900 bg-amber-50"></div>
-                            <div><label class="block text-xs font-bold text-gray-700 mb-1">الأجر التأميني (0 لغير المؤمن)</label><input type="number" id="insured_salary" step="0.01" value="0" class="w-full border p-2 rounded text-sm"></div>
-                            <div>
-                                <label class="block text-xs font-bold text-gray-700 mb-1">معاملة كسب العمل</label>
-                                <select id="hospital_bears_tax" class="w-full border p-2 rounded text-sm font-semibold text-emerald-800">
-                                    <option value="true">المستشفى تتحملها (صافي)</option>
-                                    <option value="false">تُستقطع من الموظف</option>
-                                </select>
-                            </div>
-                            <div><label class="block text-xs font-bold text-gray-600 mb-1">بدل سكن ثابت (ج.م)</label><input type="number" id="fixed_housing_allowance" value="0" step="0.01" class="w-full border p-2 rounded text-sm"></div>
-                            <div><label class="block text-xs font-bold text-gray-600 mb-1">بدل انتقال ثابت (ج.م)</label><input type="number" id="fixed_transport_allowance" value="0" step="0.01" class="w-full border p-2 rounded text-sm"></div>
-                            <div><label class="block text-xs font-bold text-gray-600 mb-1">بدل إشراف ثابت (ج.م)</label><input type="number" id="fixed_supervision_allowance" value="0" step="0.01" class="w-full border p-2 rounded text-sm"></div>
-                            <div><label class="block text-xs font-bold text-gray-600 mb-1">بدل تغذية ثابت (ج.م)</label><input type="number" id="fixed_food_allowance" value="0" step="0.01" class="w-full border p-2 rounded text-sm"></div>
-                            <div><label class="block text-xs font-bold text-gray-600 mb-1">إضافي تعاقدي ثابت (ج.م)</label><input type="number" id="fixed_overtime_allowance" value="0" step="0.01" class="w-full border p-2 rounded text-sm"></div>
-                        </div>
-                    </div>
-
-                    <div class="text-left flex justify-end gap-2 pt-2">
-                        <button type="button" id="cancelEditBtn" onclick="cancelEdit()" class="hidden bg-gray-200 text-gray-800 px-5 py-2 rounded-lg font-bold hover:bg-gray-300 transition">إلغاء التعديل</button>
-                        <button type="submit" id="saveEmpBtn" class="bg-teal-700 text-white px-6 py-2 rounded-lg font-bold hover:bg-teal-800 transition">حفظ الموظف بالسجلات</button>
-                    </div>
-                </form>
-            </div>
-
-            <div class="bg-white p-6 rounded-xl shadow">
-                <h3 class="text-lg font-bold mb-4 text-gray-700">دليل العاملين الحاليين</h3>
                 <div class="overflow-x-auto">
-                    <table class="w-full text-right border-collapse">
-                        <thead>
-                            <tr class="bg-gray-100 border-b text-xs">
-                                <th class="p-3">الكود</th>
-                                <th class="p-3">الاسم</th>
-                                <th class="p-3">الوظيفة</th>
-                                <th class="p-3">المحمول</th>
-                                <th class="p-3">الأساسي</th>
-                                <th class="p-3">الشامل</th>
-                                <th class="p-3">مجموع البدلات الثابتة</th>
-                                <th class="p-3 text-center">الإجراءات</th>
+                    <table class="w-full text-right text-xs">
+                        <thead class="bg-slate-100 border-b">
+                            <tr>
+                                <th class="p-2.5">الكود</th>
+                                <th class="p-2.5">الاسم</th>
+                                <th class="p-2.5">الوظيفة</th>
+                                <th class="p-2.5">نوع العقد</th>
+                                <th class="p-2.5">تاريخ التعيين</th>
+                                <th class="p-2.5">الأساسي</th>
+                                <th class="p-2.5">الشامل</th>
+                                <th class="p-2.5 text-center">إجراءات</th>
                             </tr>
                         </thead>
-                        <tbody id="empTableBody"></tbody>
+                        <tbody id="employeesTableBody">
+                            <tr><td colspan="8" class="text-center p-4 text-gray-500">جاري تحميل بيانات الموظفين...</td></tr>
+                        </tbody>
                     </table>
                 </div>
             </div>
         </section>
 
-        <!-- القسم 2: مسير الرواتب المطور -->
-        <section id="section-payroll" class="hidden">
-            <div class="bg-white p-6 rounded-xl shadow mb-8 no-print">
-                <div class="flex flex-wrap justify-between items-center border-b pb-3 mb-6 gap-4">
+        <!-- تبويب: إدارة السلف -->
+        <section id="section-advances" class="hidden space-y-6">
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
+                <h2 class="text-base font-black text-teal-950 mb-4 border-b pb-2">تسجيل سلفة نقدية جديدة</h2>
+                <form id="advanceForm" onsubmit="saveAdvance(event)" class="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
                     <div>
-                        <h2 class="text-xl font-bold text-teal-900">مسير الرواتب الشهري المعتمد (استحقاق يوم 28)</h2>
-                        <p class="text-xs text-gray-500 mt-0.5">تسحب البدلات وأقساط السلف تلقائياً مع حساب صافي الأجر</p>
+                        <label class="block font-bold mb-1">الموظف</label>
+                        <select id="adv_emp" required class="w-full border p-2 rounded"></select>
                     </div>
-                    <button onclick="processAllSalariesFor28th()" class="bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-emerald-800 shadow-md transition flex items-center gap-2 text-sm">
-                        <span>⚡ احتساب واعتماد رواتب كافة الدائمين ليوم 28</span>
-                    </button>
+                    <div>
+                        <label class="block font-bold mb-1">المبلغ الإجمالي للسلفة (ج.م)</label>
+                        <input type="number" id="adv_amount" step="0.01" required class="w-full border p-2 rounded font-bold">
+                    </div>
+                    <div>
+                        <label class="block font-bold mb-1">القسط الشهري المستقطع (يوم 28)</label>
+                        <input type="number" id="adv_installment" step="0.01" required class="w-full border p-2 rounded font-bold text-red-700">
+                    </div>
+                    <div>
+                        <label class="block font-bold mb-1">يبدأ الخصم من شهر</label>
+                        <input type="month" id="adv_start_month" required class="w-full border p-2 rounded">
+                    </div>
+                    <div class="md:col-span-4 flex justify-end">
+                        <button type="submit" class="bg-teal-800 text-white font-bold px-5 py-2 rounded hover:bg-teal-900 transition">صرف السلفة وتسجيل الجدولة</button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <!-- تبويب: الإجازات المطور ونموذج الطباعة المعتمد -->
+        <section id="section-leaves" class="hidden">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-8 no-print">
+                <div class="flex flex-wrap justify-between items-center border-b pb-3 mb-4 gap-2">
+                    <div>
+                        <h2 class="text-base font-black text-teal-950">تسجيل الإجازات واحتساب الأرصدة (قواعد جنوب سيناء)</h2>
+                        <p class="text-xs text-gray-500 mt-0.5">احتساب شهري تراكمي (7.75 أو 9.75 يوم/شهر) شامل الجمع، باستثناء الإجازات المرضية</p>
+                    </div>
+                    <span id="tier_desc" class="text-xs bg-teal-100 text-teal-900 font-bold px-3 py-1.5 rounded-full border border-teal-300">جاري احتساب الشريحة...</span>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <!-- إعداد الرصيد الافتتاحي ما قبل سبتمبر 2026 -->
+                <div class="bg-amber-50 p-4 rounded-xl border border-amber-200 mb-6 flex flex-wrap justify-between items-center gap-4">
                     <div>
-                        <label class="block text-sm font-semibold mb-1">تاريخ استحقاق الراتب</label>
-                        <input type="text" id="pay_date_fixed" readonly class="w-full border p-2 rounded font-bold text-teal-900 bg-gray-100">
+                        <h4 class="font-bold text-amber-950 text-xs">الرصيد الافتتاحي السابق (حتى 31 أغسطس 2026):</h4>
+                        <p class="text-[11px] text-amber-800">تثبيت الرصيد المرحل للموظف قبل تفعيل المنظومة السحابية</p>
                     </div>
-                    <div>
-                        <label class="block text-sm font-semibold mb-1">اختر الموظف الدائم</label>
-                        <select id="pay_emp" class="w-full border p-2 rounded font-bold text-teal-900" onchange="calculatePayrollPreview()"></select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-semibold mb-1">أيام عطلات رسمية (مثلي الأجر - مادة 52)</label>
-                        <input type="number" id="pay_holiday_days" value="0" step="0.5" class="w-full border p-2 rounded font-bold text-blue-800" oninput="calculatePayrollPreview()">
+                    <div class="flex items-center gap-2">
+                        <input type="number" id="opening_balance_input" step="0.25" class="border p-2 rounded text-xs w-28 font-bold text-center text-amber-950 bg-white" placeholder="0.00">
+                        <button type="button" onclick="updateOpeningBalance()" class="bg-amber-700 text-white px-3 py-2 rounded-lg font-bold text-xs hover:bg-amber-800 transition">تثبيت الرصيد الافتتاحي</button>
                     </div>
                 </div>
 
-                <div class="bg-blue-50 p-4 rounded-lg border border-blue-200 mb-4">
-                    <h4 class="font-bold text-blue-900 text-sm mb-2">البدلات التعاقدية المسحوبة آلياً + المكافآت المتغيرة:</h4>
-                    <div class="grid grid-cols-2 md:grid-cols-6 gap-3">
-                        <div><label class="block text-xs font-semibold mb-1">بدل سكن (ثابت)</label><input type="number" id="pay_housing" readonly class="w-full border p-1.5 rounded text-sm bg-gray-100"></div>
-                        <div><label class="block text-xs font-semibold mb-1">بدل انتقال (ثابت)</label><input type="number" id="pay_transport" readonly class="w-full border p-1.5 rounded text-sm bg-gray-100"></div>
-                        <div><label class="block text-xs font-semibold mb-1">بدل إشراف (ثابت)</label><input type="number" id="pay_supervision" readonly class="w-full border p-1.5 rounded text-sm bg-gray-100"></div>
-                        <div><label class="block text-xs font-semibold mb-1">بدل تغذية (ثابت)</label><input type="number" id="pay_food" readonly class="w-full border p-1.5 rounded text-sm bg-gray-100"></div>
-                        <div><label class="block text-xs font-semibold mb-1">إضافي تعاقدي (ثابت)</label><input type="number" id="pay_overtime" readonly class="w-full border p-1.5 rounded text-sm bg-gray-100"></div>
-                        <div class="bg-amber-100 p-1 rounded border border-amber-300">
-                            <label class="block text-xs font-bold text-amber-900 mb-1">حوافز ومكافآت (يدوي)</label>
-                            <input type="number" id="pay_bonus" value="0" step="0.01" class="w-full border p-1.5 rounded text-sm font-bold text-amber-900" oninput="calculatePayrollPreview()">
+                <form id="leaveForm" class="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs" onsubmit="saveLeave(event)">
+                    <div>
+                        <label class="block font-bold mb-1 text-gray-700">الموظف</label>
+                        <select id="leave_emp" class="w-full border p-2 rounded font-bold text-teal-900" onchange="loadEmployeeLeaveBalance()"></select>
+                    </div>
+                    <div>
+                        <label class="block font-bold mb-1 text-gray-700">نوع الإجازة</label>
+                        <select id="leave_type" class="w-full border p-2 rounded font-semibold text-gray-800">
+                            <option value="ANNUAL">إجازة اعتيادية / راحة مجمعة (تخصم من الرصيد)</option>
+                            <option value="CASUAL">إجازة عارضة (تخصم من الرصيد)</option>
+                            <option value="SICK">إجازة مرضية (لا تخصم من الرصيد)</option>
+                            <option value="UNPAID">إجازة بدون مرتب</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-bold mb-1 text-gray-700">من تاريخ</label>
+                        <input type="date" id="leave_start" required class="w-full border p-2 rounded">
+                    </div>
+                    <div>
+                        <label class="block font-bold mb-1 text-gray-700">إلى تاريخ</label>
+                        <input type="date" id="leave_end" required class="w-full border p-2 rounded">
+                    </div>
+
+                    <!-- بطاقة تحليل الأرصدة الدقيقة -->
+                    <div class="md:col-span-4 bg-slate-50 p-4 rounded-xl border border-slate-200 grid grid-cols-2 md:grid-cols-5 gap-3 text-center text-xs">
+                        <div class="bg-white p-2.5 rounded border">
+                            <span class="text-gray-500 block mb-1">الرصيد الافتتاحي السابق:</span>
+                            <span id="bal_opening" class="font-bold text-sm text-amber-800">0.00</span> يوم
+                        </div>
+                        <div class="bg-white p-2.5 rounded border">
+                            <span class="text-gray-500 block mb-1">المكتسب الجديد (من سبتمبر):</span>
+                            <span id="bal_accrued" class="font-bold text-sm text-blue-700">0.00</span> يوم
+                        </div>
+                        <div class="bg-white p-2.5 rounded border">
+                            <span class="text-gray-500 block mb-1">إجمالي المستحق التراكمي:</span>
+                            <span id="bal_total_entitled" class="font-bold text-sm text-teal-800">0.00</span> يوم
+                        </div>
+                        <div class="bg-white p-2.5 rounded border">
+                            <span class="text-gray-500 block mb-1">المستهلك الفعلي (شامل الجمع):</span>
+                            <span id="bal_used" class="font-bold text-sm text-red-600">0.00</span> يوم
+                        </div>
+                        <div class="bg-emerald-50 p-2.5 rounded border border-emerald-300">
+                            <span class="text-emerald-900 font-bold block mb-1">الرصيد المتبقي المتاح:</span>
+                            <span id="bal_remaining" class="font-bold text-base text-emerald-700">0.00</span> يوم
                         </div>
                     </div>
-                </div>
 
-                <div class="bg-red-50 p-4 rounded-lg border border-red-200 mb-6">
-                    <h4 class="font-bold text-red-900 text-sm mb-2">الاستقطاعات والخدمات وأقساط السلف:</h4>
-                    <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
-                        <div><label class="block text-xs font-semibold mb-1">خصم سكن (ج.م)</label><input type="number" id="ded_housing" value="0" step="0.01" class="w-full border p-1.5 rounded text-sm" oninput="calculatePayrollPreview()"></div>
-                        <div><label class="block text-xs font-semibold mb-1">خصم وجبات (ج.م)</label><input type="number" id="ded_meals" value="0" step="0.01" class="w-full border p-1.5 rounded text-sm" oninput="calculatePayrollPreview()"></div>
-                        <div><label class="block text-xs font-semibold mb-1">خدمات أخرى (ج.م)</label><input type="number" id="ded_other" value="0" step="0.01" class="w-full border p-1.5 rounded text-sm" oninput="calculatePayrollPreview()"></div>
-                        <div><label class="block text-xs font-semibold mb-1">صندوق الزمالة (يدوي)</label><input type="number" id="ded_fellowship" value="0" step="0.01" class="w-full border p-1.5 rounded text-sm" oninput="calculatePayrollPreview()"></div>
-                        <div class="bg-red-100 p-1 rounded border border-red-300">
-                            <label class="block text-xs font-bold text-red-950 mb-1">قسط السلفة (يُسحب آلياً)</label>
-                            <input type="number" id="ded_advance" value="0" step="0.01" class="w-full border p-1.5 rounded text-sm font-bold text-red-700 bg-white" oninput="calculatePayrollPreview()">
-                        </div>
-                    </div>
-                </div>
-
-                <div class="border p-6 rounded-xl bg-slate-50 border-slate-200">
-                    <h3 class="font-bold text-lg mb-4 text-slate-800 border-b pb-2 flex justify-between">
-                        <span>مفردات المرتب المقدرة</span>
-                        <span id="taxBadge" class="text-xs px-2 py-1 rounded bg-teal-100 text-teal-800 font-bold">المستشفى تتحمل الضريبة</span>
-                    </h3>
-                    
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-6">
-                        <div class="bg-white p-3 rounded border"><span class="text-gray-500 block">الراتب الأساسي:</span><span id="card_basic" class="font-bold text-base">0.00</span> ج.م</div>
-                        <div class="bg-white p-3 rounded border"><span class="text-gray-500 block">إجمالي البدلات والمكافآت:</span><span id="card_total_allowances" class="font-bold text-base text-blue-600">0.00</span> ج.م</div>
-                        <div class="bg-white p-3 rounded border"><span class="text-gray-500 block">تأمينات عامل (10%):</span><span id="card_ins_emp" class="font-bold text-base text-red-600">0.00</span> ج.م</div>
-                        <div class="bg-white p-3 rounded border"><span class="text-gray-500 block">تأمين صحي عامل (1%):</span><span id="card_uhis_emp" class="font-bold text-base text-red-600">0.00</span> ج.م</div>
-                        <div class="bg-white p-3 rounded border"><span class="text-gray-500 block">الجزاءات وساعات التأخير:</span><span id="card_penalties" class="font-bold text-base text-red-600">0.00</span> ج.م</div>
-                        <div class="bg-white p-3 rounded border"><span class="text-gray-500 block">استقطاعات الخدمات والسلف:</span><span id="card_total_deductions" class="font-bold text-base text-red-600">0.00</span> ج.م</div>
-                        <div class="bg-white p-3 rounded border"><span class="text-gray-500 block">ضريبة كسب العمل:</span><span id="card_tax" class="font-bold text-base text-red-600">0.00</span> ج.م</div>
-                        <div class="bg-teal-50 p-3 rounded border border-teal-300"><span class="text-teal-900 font-bold block">صافي الراتب المستحق:</span><span id="card_net" class="font-bold text-2xl text-teal-700">0.00</span> ج.م</div>
-                    </div>
-
-                    <div class="text-left flex justify-end gap-3">
-                        <button onclick="printCurrentPayslip()" class="bg-gray-800 text-white px-5 py-2.5 rounded-lg font-bold hover:bg-gray-900 transition flex items-center gap-2">
-                            <span>🖨️ طباعة مفردات المرتب (Payslip)</span>
+                    <div class="md:col-span-4 flex justify-end gap-3 pt-2">
+                        <button type="button" onclick="printLeaveApplication()" class="bg-gray-800 text-white px-4 py-2 rounded-lg font-bold hover:bg-gray-900 transition flex items-center gap-2 text-xs">
+                            <i class="fa-solid fa-print"></i> طباعة نموذج طلب الإجازة
                         </button>
-                        <button onclick="saveMonthlyPayroll()" id="btnApprovePayroll" class="bg-teal-700 text-white px-6 py-2.5 rounded-lg font-bold hover:bg-teal-800 transition">اعتماد وحفظ الكشف</button>
+                        <button type="submit" id="saveLeaveBtn" class="bg-teal-700 text-white px-5 py-2 rounded-lg font-bold hover:bg-teal-800 transition text-xs">تسجيل وحفظ الإجازة</button>
                     </div>
-                </div>
+                </form>
             </div>
 
-            <!-- نموذج كشف مفردات المرتب المخصص للطباعة الرسمية -->
-            <div id="payslipPrintArea" class="hidden print-area bg-white p-6 border-2 border-gray-800 rounded-lg max-w-3xl mx-auto my-4 text-right">
+            <!-- النموذج الورقي المعتمد للطباعة -->
+            <div id="leavePrintArea" class="hidden print-area bg-white p-6 border-2 border-gray-900 rounded-lg max-w-3xl mx-auto my-4 text-right">
                 <div class="border-b-2 border-gray-900 pb-3 mb-4 flex justify-between items-center">
                     <div>
-                        <h2 class="text-xl font-bold text-gray-900">مستشفى سينا كلينيك - شرم الشيخ</h2>
-                        <h3 class="text-md font-semibold text-gray-700">إشعار مفردات راتب معتمد (Payslip)</h3>
+                        <h2 class="text-lg font-black text-gray-900">مستشفى سينا كلينيك - شرم الشيخ</h2>
+                        <h3 class="text-sm font-bold text-gray-700">طلب وتصريح إجازة اعتيادية / راحة مجمعة</h3>
                     </div>
                     <div class="text-left text-xs font-mono">
-                        <p>تاريخ الاستحقاق: <span id="ps_pay_date"></span></p>
-                        <p>تاريخ الطباعة: <span id="ps_print_date"></span></p>
+                        <p>تاريخ الطلب: <span id="la_print_date"></span></p>
+                        <p>جنوب سيناء - مصر</p>
                     </div>
                 </div>
 
                 <div class="grid grid-cols-2 gap-4 bg-gray-50 p-3 rounded border border-gray-300 text-xs mb-4">
-                    <div><span class="font-bold">اسم الموظف:</span> <span id="ps_emp_name" class="font-semibold text-sm"></span></div>
-                    <div><span class="font-bold">كود الموظف:</span> <span id="ps_emp_code" class="font-mono font-semibold"></span></div>
-                    <div><span class="font-bold">الوظيفة:</span> <span id="ps_job_title"></span></div>
-                    <div><span class="font-bold">القسم / الإدارة:</span> <span id="ps_dept"></span></div>
+                    <div><span class="font-bold">اسم الموظف:</span> <span id="la_emp_name" class="font-semibold text-sm"></span></div>
+                    <div><span class="font-bold">كود الموظف:</span> <span id="la_emp_code" class="font-mono font-semibold"></span></div>
+                    <div><span class="font-bold">الوظيفة:</span> <span id="la_job_title"></span></div>
+                    <div><span class="font-bold">القسم / الإدارة:</span> <span id="la_dept"></span></div>
                 </div>
 
-                <div class="grid grid-cols-2 gap-6 text-xs mb-4">
-                    <div class="border border-gray-300 rounded p-3">
-                        <h4 class="font-bold text-center border-b pb-1 mb-2 bg-gray-100">الاستحقاقات والبدلات (ج.م)</h4>
-                        <div class="space-y-1.5">
-                            <div class="flex justify-between"><span>الراتب الأساسي:</span><span id="ps_basic" class="font-bold"></span></div>
-                            <div class="flex justify-between"><span>أيام عمل عطلات (مثلي أجر):</span><span id="ps_holiday">0.00</span></div>
-                            <div class="flex justify-between"><span>بدل سكن:</span><span id="ps_housing">0.00</span></div>
-                            <div class="flex justify-between"><span>بدل انتقال:</span><span id="ps_transport">0.00</span></div>
-                            <div class="flex justify-between"><span>بدل إشراف:</span><span id="ps_supervision">0.00</span></div>
-                            <div class="flex justify-between"><span>بدل تغذية:</span><span id="ps_food">0.00</span></div>
-                            <div class="flex justify-between"><span>إضافي تعاقدي:</span><span id="ps_overtime">0.00</span></div>
-                            <div class="flex justify-between"><span>مكافآت وحوافز:</span><span id="ps_bonus">0.00</span></div>
-                            <div class="border-t pt-1.5 flex justify-between font-bold text-sm bg-gray-50 p-1"><span>إجمالي الاستحقاقات:</span><span id="ps_gross"></span></div>
-                        </div>
-                    </div>
+                <div class="border border-gray-300 rounded p-3 text-xs mb-4 space-y-2">
+                    <h4 class="font-bold border-b pb-1 text-teal-950">تفاصيل الإجازة المصرح بها:</h4>
+                    <div class="flex justify-between"><span>نوع الإجازة:</span><span id="la_leave_type" class="font-bold"></span></div>
+                    <div class="flex justify-between"><span>تاريخ البداية (من):</span><span id="la_from" class="font-mono font-bold"></span></div>
+                    <div class="flex justify-between"><span>تاريخ الانتهاء (إلى):</span><span id="la_to" class="font-mono font-bold"></span></div>
+                    <div class="flex justify-between border-t pt-1 font-bold text-xs"><span>إجمالي الأيام:</span><span id="la_days" class="text-teal-900"></span></div>
+                </div>
 
-                    <div class="border border-gray-300 rounded p-3">
-                        <h4 class="font-bold text-center border-b pb-1 mb-2 bg-gray-100">الاستقطاعات والتأمينات (ج.م)</h4>
-                        <div class="space-y-1.5">
-                            <div class="flex justify-between"><span>تأمينات اجتماعية (10%):</span><span id="ps_ins_emp"></span></div>
-                            <div class="flex justify-between"><span>تأمين صحي شامل (1%):</span><span id="ps_uhis_emp"></span></div>
-                            <div class="flex justify-between"><span>قسط السلفة المستحق:</span><span id="ps_advance" class="font-bold text-red-700">0.00</span></div>
-                            <div class="flex justify-between"><span>الجزاءات والتأخير:</span><span id="ps_penalties">0.00</span></div>
-                            <div class="flex justify-between"><span>استقطاع السكن:</span><span id="ps_ded_housing">0.00</span></div>
-                            <div class="flex justify-between"><span>استقطاع الوجبات:</span><span id="ps_ded_meals">0.00</span></div>
-                            <div class="flex justify-between"><span>صندوق الزمالة:</span><span id="ps_fellowship">0.00</span></div>
-                            <div class="flex justify-between"><span>خدمات أخرى:</span><span id="ps_other">0.00</span></div>
-                            <div class="border-t pt-1.5 flex justify-between font-bold text-sm bg-gray-50 p-1"><span>إجمالي الاستقطاعات:</span><span id="ps_deductions"></span></div>
-                        </div>
+                <div class="grid grid-cols-2 gap-4 text-xs mb-4">
+                    <div class="bg-gray-50 p-2.5 rounded border text-center">
+                        <span class="text-gray-600 block mb-0.5">رصيد الإجازات قبل هذا الطلب:</span>
+                        <span id="la_bal_before" class="font-bold text-sm text-gray-800"></span> يوماً
+                    </div>
+                    <div class="bg-teal-50 p-2.5 rounded border border-teal-200 text-center">
+                        <span class="text-teal-950 font-bold block mb-0.5">الرصيد المتبقي بعد اعتماد الإجازة:</span>
+                        <span id="la_bal_after" class="font-bold text-sm text-teal-900"></span> يوماً
                     </div>
                 </div>
 
-                <div class="bg-gray-100 border-2 border-gray-800 p-3 rounded flex justify-between items-center mb-6">
-                    <span class="text-sm font-bold">صافي الراتب المستحق للصرف:</span>
-                    <span id="ps_net" class="text-xl font-bold text-gray-900 font-mono"></span>
+                <div class="border-t border-gray-300 pt-2 mb-6 text-[11px]">
+                    <p class="font-bold mb-1">إقرار الموظف والقائم بالعمل:</p>
+                    <p class="text-gray-600">أتعهد بالعودة للعمل فور انتهاء المدة المصرح بها، والقائم بالعمل المكلف خلال فترة غيابي هو الزميل: ........................................</p>
                 </div>
 
-                <div class="grid grid-cols-3 text-center text-xs font-bold pt-4 border-t border-gray-300">
-                    <div><p class="mb-8">توقيع الموظف المستلم</p><p>............................</p></div>
-                    <div><p class="mb-8">إعداد ومراجعة الحسابات</p><p>............................</p></div>
+                <div class="grid grid-cols-3 text-center text-xs font-bold pt-4 border-t-2 border-gray-900">
+                    <div><p class="mb-8">توقيع طالب الإجازة</p><p>............................</p></div>
+                    <div><p class="mb-8">موافقة المشرف / رئيس القسم</p><p>............................</p></div>
                     <div><p class="mb-8">يعتمد / المدير المالي والإداري</p><p>............................</p></div>
                 </div>
             </div>
         </section>
 
-        <!-- القسم 3: إدارة المستخدمين والصلاحيات (جديد ومخصص للمدير) -->
-        <section id="section-users" class="hidden no-print">
-            <div class="bg-white p-6 rounded-xl shadow mb-8">
-                <h2 class="text-xl font-bold text-purple-900 border-b pb-2 mb-4">إضافة مستخدم جديد وتحديد الصلاحية</h2>
-                <form id="userForm" class="grid grid-cols-1 md:grid-cols-4 gap-4" onsubmit="handleCreateUser(event)">
+        <!-- تبويب: الجزاءات والإنذارات -->
+        <section id="section-penalties" class="hidden space-y-6">
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
+                <h2 class="text-base font-black text-teal-950 mb-4 border-b pb-2">تسجيل جزاء أو إشعار تأخير أو إنذار كتابي</h2>
+                <form id="penaltyForm" onsubmit="savePenalty(event)" class="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
                     <div>
-                        <label class="block text-xs font-bold text-gray-700 mb-1">اسم الدخول (Username)</label>
-                        <input type="text" id="new_usr_username" required class="w-full border p-2 rounded text-sm" placeholder="مثال: hr_assistant">
+                        <label class="block font-bold mb-1">الموظف</label>
+                        <select id="pen_emp" required class="w-full border p-2 rounded font-bold"></select>
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-gray-700 mb-1">الاسم بالكامل</label>
-                        <input type="text" id="new_usr_fullname" required class="w-full border p-2 rounded text-sm" placeholder="اسم الموظف الثلاثي">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-700 mb-1">كلمة المرور</label>
-                        <input type="password" id="new_usr_password" required class="w-full border p-2 rounded text-sm" placeholder="••••••••">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-700 mb-1">الدور الوظيفي والصلاحية</label>
-                        <select id="new_usr_role" class="w-full border p-2 rounded text-sm font-bold text-purple-900">
-                            <option value="HR">مسؤول موارد بشرية (HR)</option>
-                            <option value="ACCOUNTANT">محاسب رواتب وماليات (Accountant)</option>
-                            <option value="SUPERVISOR">مشرف تشغيل وإجازات (Supervisor)</option>
-                            <option value="AUDITOR">مراجع داخلي - تقارير فقط (Auditor)</option>
-                            <option value="ADMIN">مدير نظام كامل الصلاحيات (Admin)</option>
+                        <label class="block font-bold mb-1">نوع الإجراء الرقابي</label>
+                        <select id="pen_type" required class="w-full border p-2 rounded">
+                            <option value="DAYS">خصم أيام من الراتب</option>
+                            <option value="HOURS">تأخير ساعات (تحسب تلقائياً)</option>
+                            <option value="WARNING">إنذار كتابي رسمي بدون خصم</option>
                         </select>
                     </div>
-                    <div class="md:col-span-4 text-left">
-                        <button type="submit" class="bg-purple-700 text-white px-6 py-2 rounded-lg font-bold hover:bg-purple-800 transition">إنشاء الحساب وتفعيل الصلاحية</button>
+                    <div>
+                        <label class="block font-bold mb-1">المقدار (أيام الخصم أو الساعات)</label>
+                        <input type="number" id="pen_amount" step="0.5" class="w-full border p-2 rounded font-bold text-red-700" placeholder="0">
+                    </div>
+                    <div>
+                        <label class="block font-bold mb-1">تاريخ وقوع المخالفة</label>
+                        <input type="date" id="pen_date" required class="w-full border p-2 rounded">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block font-bold mb-1">سبب المخالفة / المذكرة</label>
+                        <input type="text" id="pen_reason" required class="w-full border p-2 rounded" placeholder="مثال: غياب بدون إذن / تأخير عن نوبتجية العمل">
+                    </div>
+                    <div>
+                        <label class="block font-bold mb-1">رقم التحقيق أو المرجع الإداري</label>
+                        <input type="text" id="pen_ref" class="w-full border p-2 rounded" placeholder="تحقيق إداري رقم ...">
+                    </div>
+                    <div>
+                        <label class="block font-bold mb-1">شهر الاستقطاع بالمسير</label>
+                        <input type="month" id="pen_month" required class="w-full border p-2 rounded">
+                    </div>
+                    <div class="md:col-span-4 flex justify-end">
+                        <button type="submit" class="bg-red-800 text-white font-bold px-5 py-2 rounded hover:bg-red-900 transition">اعتماد وتسجيل الجزاء</button>
                     </div>
                 </form>
             </div>
+        </section>
 
-            <div class="bg-white p-6 rounded-xl shadow">
-                <h3 class="text-lg font-bold mb-4 text-gray-700">قائمة المستخدمين وصلاحيات الدخول الحالية</h3>
+        <!-- تبويب: مسير الرواتب (استحقاق يوم 28) -->
+        <section id="section-payroll" class="hidden space-y-6">
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
+                <div class="flex flex-wrap justify-between items-center border-b pb-3 mb-4 gap-2">
+                    <div>
+                        <h2 class="text-base font-black text-teal-950">إعداد واعتماد مسير الرواتب الشهري (يوم 28)</h2>
+                        <p class="text-xs text-gray-500">احتساب آلي للتأمينات (10%)، الصحي الشامل (1%)، ضريبة كسب العمل، وأقساط السلف والجزاءات</p>
+                    </div>
+                    <div class="flex items-center gap-2 text-xs">
+                        <input type="month" id="payroll_month_select" class="border p-2 rounded font-bold">
+                        <button onclick="calculateMonthlyPayroll()" class="bg-teal-800 text-white px-4 py-2 rounded font-bold hover:bg-teal-900 transition">احتساب المسير آلياً</button>
+                    </div>
+                </div>
                 <div class="overflow-x-auto">
-                    <table class="w-full text-right border-collapse">
-                        <thead>
-                            <tr class="bg-purple-50 border-b text-xs text-purple-950">
-                                <th class="p-3">اسم الدخول</th>
-                                <th class="p-3">الاسم بالكامل</th>
-                                <th class="p-3">الدور الحالي</th>
-                                <th class="p-3">الحالة</th>
-                                <th class="p-3 text-center">التحكم في الحساب</th>
+                    <table class="w-full text-right text-xs">
+                        <thead class="bg-slate-100 border-b">
+                            <tr>
+                                <th class="p-2">الكود</th>
+                                <th class="p-2">الاسم</th>
+                                <th class="p-2">الأساسي</th>
+                                <th class="p-2">البدلات</th>
+                                <th class="p-2">مكافآت</th>
+                                <th class="p-2 text-red-600">تأمينات</th>
+                                <th class="p-2 text-red-600">صحي</th>
+                                <th class="p-2 text-red-600">سلف</th>
+                                <th class="p-2 text-red-600">جزاءات</th>
+                                <th class="p-2 bg-teal-50 font-bold">صافي المرتب</th>
+                                <th class="p-2 text-center">مفردات مرتب</th>
                             </tr>
                         </thead>
-                        <tbody id="usersTableBody"></tbody>
+                        <tbody id="payrollTableBody">
+                            <tr><td colspan="11" class="text-center p-4 text-gray-500">حدد الشهر واضغط احتساب المسير للعرض</td></tr>
+                        </tbody>
                     </table>
                 </div>
             </div>
-        </section>
 
-        <!-- الأقسام الأخرى -->
-        <section id="section-advances" class="hidden no-print">
-            <div id="advFormContainer" class="bg-white p-6 rounded-xl shadow mb-8">
-                <h2 class="text-xl font-bold text-teal-900 border-b pb-2 mb-4">تسجيل وإدارة السلف والأقساط الشهرية</h2>
-                <form id="advForm" class="grid grid-cols-1 md:grid-cols-4 gap-4" onsubmit="saveAdvance(event)">
-                    <div><label class="block text-sm font-semibold mb-1">الموظف</label><select id="adv_emp" required class="w-full border p-2 rounded"></select></div>
-                    <div><label class="block text-sm font-semibold mb-1">نوع السلفة</label><select id="adv_type" class="w-full border p-2 rounded font-semibold text-teal-800" onchange="adjustAdvanceType()"><option value="MONTHLY">سلفة شهرية</option><option value="INSTALLMENT">سلفة مستديمة</option></select></div>
-                    <div><label class="block text-sm font-semibold mb-1">إجمالي السلفة (ج.م)</label><input type="number" id="adv_amount" step="0.01" required class="w-full border p-2 rounded" oninput="adjustAdvanceType()"></div>
-                    <div><label class="block text-sm font-semibold mb-1">القسط الشهري (ج.م)</label><input type="number" id="adv_installment" step="0.01" required class="w-full border p-2 rounded font-bold text-red-700"></div>
-                    <div><label class="block text-sm font-semibold mb-1">شهر بدء الخصم</label><input type="month" id="adv_start_month" required class="w-full border p-2 rounded"></div>
-                    <div class="md:col-span-3"><label class="block text-sm font-semibold mb-1">ملاحظات</label><input type="text" id="adv_notes" class="w-full border p-2 rounded"></div>
-                    <div class="md:col-span-4 text-left"><button type="submit" id="saveAdvBtn" class="bg-teal-700 text-white px-6 py-2 rounded-lg font-bold hover:bg-teal-800 transition">اعتماد وتسجيل السلفة</button></div>
-                </form>
-            </div>
-            <div class="bg-white p-6 rounded-xl shadow">
-                <h3 class="text-lg font-bold mb-4 text-gray-700">سجل السلف القائمة</h3>
-                <div class="overflow-x-auto"><table class="w-full text-right border-collapse"><thead class="bg-gray-100 border-b"><tr><th class="p-3">الموظف</th><th class="p-3">النوع</th><th class="p-3">الإجمالي</th><th class="p-3">القسط</th><th class="p-3">المتبقي</th><th class="p-3">البدء</th><th class="p-3">الحالة</th></tr></thead><tbody id="advTableBody"></tbody></table></div>
-            </div>
-        </section>
-
-        <section id="section-leaves" class="hidden no-print">
-            <div class="bg-white p-6 rounded-xl shadow mb-8">
-                <h2 class="text-xl font-bold text-teal-900 border-b pb-2 mb-4">تسجيل الإجازات والأرصدة (مناطق نائية - جنوب سيناء)</h2>
-                <form id="leaveForm" class="grid grid-cols-1 md:grid-cols-4 gap-4" onsubmit="saveLeave(event)">
-                    <div><label class="block text-sm font-semibold mb-1">الموظف</label><select id="leave_emp" class="w-full border p-2 rounded" onchange="loadEmployeeLeaveBalance()"></select></div>
-                    <div><label class="block text-sm font-semibold mb-1">نوع الإجازة</label><select id="leave_type" class="w-full border p-2 rounded"><option value="ANNUAL">سنوية اعتيادية (شاملة الجمع)</option><option value="CASUAL">عارضة</option><option value="SICK">مرضية</option><option value="UNPAID">بدون مرتب</option></select></div>
-                    <div><label class="block text-sm font-semibold mb-1">من تاريخ</label><input type="date" id="leave_start" required class="w-full border p-2 rounded"></div>
-                    <div><label class="block text-sm font-semibold mb-1">إلى تاريخ</label><input type="date" id="leave_end" required class="w-full border p-2 rounded"></div>
-                    <div class="md:col-span-4 bg-teal-50 p-4 rounded-lg flex justify-between text-sm border border-teal-200">
-                        <div>المستحق: <span id="bal_entitled" class="font-bold text-teal-700">28</span> يوماً</div>
-                        <div>المستهلك: <span id="bal_used" class="font-bold text-red-600">0</span> يوماً</div>
-                        <div>المتبقي: <span id="bal_remaining" class="font-bold text-emerald-700">28</span> يوماً</div>
-                    </div>
-                    <div class="md:col-span-4 text-left"><button type="submit" id="saveLeaveBtn" class="bg-teal-700 text-white px-6 py-2 rounded-lg font-bold hover:bg-teal-800">تسجيل الإجازة</button></div>
-                </form>
-            </div>
-        </section>
-
-        <section id="section-penalties" class="hidden no-print">
-            <div id="penFormContainer" class="bg-white p-6 rounded-xl shadow mb-8">
-                <h2 class="text-xl font-bold text-red-800 border-b pb-2 mb-4">الجزاءات والإنذارات وساعات التأخير</h2>
-                <form id="penaltyForm" class="grid grid-cols-1 md:grid-cols-4 gap-4" onsubmit="savePenalty(event)">
-                    <div><label class="block text-sm font-semibold mb-1">الموظف</label><select id="pen_emp" required class="w-full border p-2 rounded"></select></div>
-                    <div><label class="block text-sm font-semibold mb-1">نوع الإجراء</label><select id="pen_type" class="w-full border p-2 rounded font-bold text-red-800" onchange="adjustPenaltyInputs()"><option value="DAYS">خصم أيام</option><option value="HOURS">خصم ساعات</option><option value="WARNING">إنذار كتابي</option></select></div>
-                    <div id="div_pen_days"><label class="block text-sm font-semibold mb-1">الأيام</label><input type="number" id="penalty_days" step="0.25" min="0.25" value="1" class="w-full border p-2 rounded font-bold text-red-700"></div>
-                    <div id="div_pen_hours" class="hidden"><label class="block text-sm font-semibold mb-1">الساعات</label><input type="number" id="delay_hours" step="0.5" min="0.5" value="1" class="w-full border p-2 rounded font-bold text-amber-700"></div>
-                    <div><label class="block text-sm font-semibold mb-1">تاريخ المخالفة</label><input type="date" id="violation_date" required class="w-full border p-2 rounded"></div>
-                    <div><label class="block text-sm font-semibold mb-1">شهر الخصم</label><input type="month" id="pen_month" required class="w-full border p-2 rounded"></div>
-                    <div class="md:col-span-2"><label class="block text-sm font-semibold mb-1">رقم التحقيق</label><input type="text" id="investigation_ref" class="w-full border p-2 rounded"></div>
-                    <div class="md:col-span-4"><label class="block text-sm font-semibold mb-1">السبب</label><input type="text" id="violation_reason" required class="w-full border p-2 rounded"></div>
-                    <div class="md:col-span-4 text-left"><button type="submit" id="savePenBtn" class="bg-red-700 text-white px-6 py-2 rounded-lg font-bold hover:bg-red-800">تثبيت الجزاء</button></div>
-                </form>
-            </div>
-            <div class="bg-white p-6 rounded-xl shadow">
-                <h3 class="text-lg font-bold mb-4 text-gray-700">سجل الجزاءات</h3>
-                <div class="overflow-x-auto"><table class="w-full text-right border-collapse"><thead class="bg-gray-100 border-b"><tr><th class="p-3">الموظف</th><th class="p-3">النوع</th><th class="p-3">التاريخ</th><th class="p-3">المخالفة</th><th class="p-3">الخصم</th><th class="p-3">الشهر</th><th class="p-3">التحقيق</th></tr></thead><tbody id="penTableBody"></tbody></table></div>
-            </div>
-        </section>
-
-        <section id="section-settlement" class="hidden no-print">
-            <div class="bg-white p-6 rounded-xl shadow mb-8">
-                <h2 class="text-xl font-bold mb-4 text-emerald-800 border-b pb-2">إصدار إذن صرف للمؤقتين</h2>
-                <form id="settleForm" class="grid grid-cols-1 md:grid-cols-3 gap-4" onsubmit="processSettlement(event)">
-                    <div><label class="block text-sm font-semibold mb-1">الموظف / الطبيب</label><select id="settle_emp" required class="w-full border p-2 rounded"></select></div>
-                    <div><label class="block text-sm font-semibold mb-1">من وقت</label><input type="datetime-local" id="start_shift" required class="w-full border p-2 rounded"></div>
-                    <div><label class="block text-sm font-semibold mb-1">إلى وقت</label><input type="datetime-local" id="end_shift" required class="w-full border p-2 rounded"></div>
-                    <div><label class="block text-sm font-semibold mb-1">عدد الشفتات</label><input type="number" id="shifts_count" value="1" step="0.5" oninput="calculateTotal()" class="w-full border p-2 rounded"></div>
-                    <div><label class="block text-sm font-semibold mb-1">قيمة الشفت (ج.م)</label><input type="number" id="unit_rate" step="0.01" oninput="calculateTotal()" class="w-full border p-2 rounded"></div>
-                    <div><label class="block text-sm font-semibold mb-1">استقطاع ضريبي</label><input type="number" id="withholding_tax" value="0" step="0.01" oninput="calculateTotal()" class="w-full border p-2 rounded"></div>
-                    <div class="md:col-span-3 bg-emerald-50 p-4 rounded-lg flex justify-between"><span class="text-lg font-bold text-emerald-900">المستحق للصرف:</span><span id="net_amount_display" class="text-2xl font-bold text-emerald-700">0.00 ج.م</span></div>
-                    <div class="md:col-span-3 text-left"><button type="submit" id="saveSettleBtn" class="bg-emerald-700 text-white px-6 py-2 rounded-lg font-bold hover:bg-emerald-800">اعتماد الصرف</button></div>
-                </form>
-            </div>
-        </section>
-
-        <section id="section-reports" class="hidden">
-            <div class="bg-white p-6 rounded-xl shadow mb-6 no-print">
-                <h2 class="text-xl font-bold text-amber-900 border-b pb-2 mb-4">مركز التقارير والكشوف الرقابية المعتمدة</h2>
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+            <!-- نموذج مفردات المرتب الرسمي للطباعة -->
+            <div id="payslipPrintArea" class="hidden print-area bg-white p-6 border-2 border-gray-900 rounded-lg max-w-2xl mx-auto my-4 text-right">
+                <div class="border-b-2 border-gray-900 pb-2 mb-3 flex justify-between items-center">
                     <div>
-                        <label class="block text-sm font-semibold mb-1">نوع التقرير</label>
-                        <select id="report_type" class="w-full border p-2 rounded font-bold text-teal-900" onchange="toggleReportFilters()">
-                            <option value="PAYROLL_MASTER">كشف المرتبات والأجور الشامل (Payroll Sheet)</option>
+                        <h2 class="text-base font-black">مستشفى سينا كلينيك - شرم الشيخ</h2>
+                        <h3 class="text-xs font-bold text-gray-600">بيان مفردات المرتب الشهري (Payslip)</h3>
+                    </div>
+                    <span id="ps_month" class="text-xs font-mono font-bold bg-gray-100 px-2.5 py-1 rounded"></span>
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-xs border p-2.5 rounded bg-gray-50 mb-3">
+                    <div><span class="font-bold">الموظف:</span> <span id="ps_name"></span></div>
+                    <div><span class="font-bold">الكود:</span> <span id="ps_code" class="font-mono"></span></div>
+                    <div><span class="font-bold">الوظيفة:</span> <span id="ps_job"></span></div>
+                    <div><span class="font-bold">تاريخ الاستحقاق:</span> 28 من كل شهر ميلادي</div>
+                </div>
+                <div class="grid grid-cols-2 gap-4 text-xs mb-3">
+                    <div class="border p-2 rounded">
+                        <h4 class="font-bold border-b pb-1 text-emerald-800 mb-1">الاستحقاقات (ج.م):</h4>
+                        <div class="flex justify-between py-0.5"><span>المرتب الأساسي:</span><span id="ps_basic" class="font-mono"></span></div>
+                        <div class="flex justify-between py-0.5"><span>البدلات الثابتة:</span><span id="ps_allowances" class="font-mono"></span></div>
+                        <div class="flex justify-between py-0.5"><span>مكافآت وحوافز:</span><span id="ps_bonuses" class="font-mono"></span></div>
+                        <div class="flex justify-between border-t pt-1 font-bold text-teal-900"><span>إجمالي المستحق:</span><span id="ps_gross" class="font-mono"></span></div>
+                    </div>
+                    <div class="border p-2 rounded">
+                        <h4 class="font-bold border-b pb-1 text-red-800 mb-1">الاستقطاعات (ج.م):</h4>
+                        <div class="flex justify-between py-0.5"><span>تأمينات اجتماعية (10%):</span><span id="ps_si" class="font-mono"></span></div>
+                        <div class="flex justify-between py-0.5"><span>تأمين صحي شامل (1%):</span><span id="ps_uhis" class="font-mono"></span></div>
+                        <div class="flex justify-between py-0.5"><span>قسط السلفة:</span><span id="ps_adv" class="font-mono"></span></div>
+                        <div class="flex justify-between py-0.5"><span>خصومات وجزاءات:</span><span id="ps_pen" class="font-mono"></span></div>
+                        <div class="flex justify-between border-t pt-1 font-bold text-red-700"><span>إجمالي المستقطع:</span><span id="ps_deductions" class="font-mono"></span></div>
+                    </div>
+                </div>
+                <div class="bg-teal-50 border border-teal-300 p-2.5 rounded text-center mb-4">
+                    <span class="text-xs text-teal-900 font-bold">صافي المرتب المستحق للصرف: </span>
+                    <span id="ps_net" class="text-lg font-black text-teal-950 font-mono"></span> <span class="text-xs">جنيه مصري</span>
+                </div>
+                <div class="grid grid-cols-2 text-center text-[11px] font-bold pt-3 border-t">
+                    <div><p class="mb-6">توقيع المستلم</p><p>........................</p></div>
+                    <div><p class="mb-6">يعتمد / الإدارة المالية</p><p>........................</p></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- تبويب: مركز التقارير والكشوف المعتمدة -->
+        <section id="section-reports" class="hidden space-y-6">
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200 no-print">
+                <h2 class="text-base font-black text-teal-950 mb-3">مركز التقارير والكشوف الرقابية المعتمدة</h2>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs items-end">
+                    <div>
+                        <label class="block font-bold mb-1">نوع التقرير</label>
+                        <select id="report_type" class="w-full border p-2 rounded font-bold" onchange="toggleReportFilters()">
                             <option value="PENALTIES_PERIOD">تقرير الجزاءات والإنذارات حسب الفترة</option>
-                            <option value="PERMANENT_STAFF">تقرير العاملين الدائمين وبيانات العقود</option>
-                            <option value="TEMPORARY_STAFF">تقرير العمالة المؤقتة</option>
-                            <option value="LEAVES_SUMMARY">تقرير أرصدة الإجازات</option>
+                            <option value="PAYROLL_MASTER">كشف مسير المرتبات الشامل (يوم 28)</option>
+                            <option value="PERMANENT_STAFF">دليل العاملين الدائمين وبيانات العقود</option>
+                            <option value="TEMPORARY_STAFF">سجل العمالة المؤقتة والأطباء الزائرين</option>
+                            <option value="LEAVES_SUMMARY">تقرير أرصدة الإجازات السنوية للعاملين</option>
                         </select>
                     </div>
-                    <div id="filter_month_div">
-                        <label class="block text-sm font-semibold mb-1">الشهر المستهدف</label>
+                    <div id="filter_from">
+                        <label class="block font-bold mb-1">من تاريخ</label>
+                        <input type="date" id="rep_from_date" class="w-full border p-2 rounded">
+                    </div>
+                    <div id="filter_to">
+                        <label class="block font-bold mb-1">إلى تاريخ</label>
+                        <input type="date" id="rep_to_date" class="w-full border p-2 rounded">
+                    </div>
+                    <div id="filter_month" class="hidden">
+                        <label class="block font-bold mb-1">الشهر</label>
                         <input type="month" id="rep_month" class="w-full border p-2 rounded">
                     </div>
-                    <div id="filter_dates_div" class="hidden col-span-2 grid grid-cols-2 gap-2">
-                        <div><label class="block text-sm font-semibold mb-1">من تاريخ</label><input type="date" id="rep_from_date" class="w-full border p-2 rounded"></div>
-                        <div><label class="block text-sm font-semibold mb-1">إلى تاريخ</label><input type="date" id="rep_to_date" class="w-full border p-2 rounded"></div>
-                    </div>
                     <div class="flex gap-2">
-                        <button onclick="generateReport()" class="bg-amber-600 text-white px-5 py-2 rounded-lg font-bold hover:bg-amber-700 transition flex-1">عرض التقرير</button>
-                        <button onclick="window.print()" class="bg-teal-700 text-white px-4 py-2 rounded-lg font-bold hover:bg-teal-800 transition">طباعة 🖨️</button>
+                        <button onclick="generateReport()" class="flex-1 bg-amber-600 text-white font-bold py-2 rounded hover:bg-amber-700 transition">عرض التقرير</button>
+                        <button onclick="window.print()" class="bg-teal-800 text-white px-4 py-2 rounded hover:bg-teal-900 transition"><i class="fa-solid fa-print"></i> طباعة</button>
                     </div>
                 </div>
             </div>
 
-            <div id="reportContainer" class="bg-white p-8 rounded-xl shadow print-area">
-                <div class="border-b-2 border-teal-800 pb-4 mb-6 flex justify-between items-center">
+            <!-- مساحة عرض وطباعة التقرير المعتمد -->
+            <div id="reportPrintArea" class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 print-area">
+                <div class="border-b-2 border-teal-900 pb-3 mb-4 flex justify-between items-center">
                     <div>
-                        <h2 class="text-2xl font-bold text-teal-900">مستشفى سينا كلينيك - شرم الشيخ</h2>
-                        <h4 id="reportTitleHeader" class="text-lg font-semibold text-gray-700 mt-1">كشف مسير المرتبات الشامل</h4>
+                        <h2 class="text-base font-black text-teal-950">مستشفى سينا كلينيك - شرم الشيخ</h2>
+                        <h3 id="reportTitleHeader" class="text-sm font-bold text-gray-700 mt-0.5">سجل الجزاءات والإنذارات</h3>
                     </div>
-                    <div class="text-left text-xs text-gray-500">
-                        <p>تاريخ الاستخراج: <span id="repGeneratedDate"></span></p>
+                    <div class="text-left text-xs text-gray-500 font-mono">
+                        <p>تاريخ الاستخراج: <span id="rep_current_date"></span></p>
                         <p>جنوب سيناء - مصر</p>
                     </div>
                 </div>
                 <div class="overflow-x-auto">
-                    <table class="w-full text-right border-collapse text-sm" id="reportTable">
-                        <thead id="reportTableHead" class="bg-gray-100 border-b-2"></thead>
-                        <tbody id="reportTableBody"></tbody>
+                    <table class="w-full text-right text-xs">
+                        <thead id="reportTableHead" class="bg-gray-100 border-b"></thead>
+                        <tbody id="reportTableBody">
+                            <tr><td class="text-center p-4 text-gray-500">التقرير متاح ومعتمد للعرض</td></tr>
+                        </tbody>
                     </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- تبويب: المستخدمين والصلاحيات -->
+        <section id="section-users" class="hidden space-y-6">
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
+                <h2 class="text-base font-black text-purple-950 mb-3 border-b pb-2">إدارة حسابات المستخدمين وصلاحيات الوصول</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                    <div class="p-3 bg-purple-50 rounded-lg border border-purple-200">
+                        <span class="font-bold block text-purple-950">المدير المالي والإداري (ADMIN)</span>
+                        <span class="text-gray-600">كامل الصلاحيات (الاعتماد، الرواتب، الإجازات، الصلاحيات)</span>
+                    </div>
+                    <div class="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                        <span class="font-bold block text-blue-950">شؤون العاملين (HR)</span>
+                        <span class="text-gray-600">إدخال العاملين، الإجازات، الجزاءات، وطباعة النماذج</span>
+                    </div>
+                    <div class="p-3 bg-emerald-50 rounded-lg border border-emerald-200">
+                        <span class="font-bold block text-emerald-950">الحسابات (ACCOUNTANT)</span>
+                        <span class="text-gray-600">مسير الرواتب، السلف، والتقارير المالية المعتمدة</span>
+                    </div>
                 </div>
             </div>
         </section>
 
     </main>
 
-    <!-- نافذة مسوغات التعيين -->
-    <div id="docsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center p-4 z-50 no-print">
-        <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
+    <!-- Modal إضافة / تعديل موظف -->
+    <div id="employeeModal" class="fixed inset-0 bg-black bg-opacity-60 hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center border-b pb-3 mb-4">
-                <h3 class="text-lg font-bold text-teal-900" id="modalEmpName">مسوغات التعيين</h3>
-                <button onclick="closeDocsModal()" class="text-gray-400 hover:text-red-600 font-bold text-xl">&times;</button>
+                <h3 class="font-bold text-sm text-teal-950">تسجيل بيانات موظف جديد</h3>
+                <button onclick="toggleEmployeeModal()" class="text-gray-500 hover:text-red-700 font-bold">✕</button>
             </div>
-            <div id="docsList" class="space-y-3"></div>
-            <div class="mt-6 text-left border-t pt-3 flex justify-end gap-2">
-                <button onclick="closeDocsModal()" class="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg font-semibold hover:bg-gray-300">إغلاق</button>
-                <button onclick="saveDocumentsState()" id="saveDocsBtn" class="bg-teal-700 text-white px-5 py-2 rounded-lg font-bold hover:bg-teal-800">حفظ بالسحابة</button>
-            </div>
+            <form id="employeeForm" onsubmit="saveEmployee(event)" class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                <div>
+                    <label class="block font-bold mb-1">كود الموظف</label>
+                    <input type="text" id="emp_code" required class="w-full border p-2 rounded font-mono">
+                </div>
+                <div>
+                    <label class="block font-bold mb-1">الاسم الكامل</label>
+                    <input type="text" id="full_name" required class="w-full border p-2 rounded font-bold">
+                </div>
+                <div>
+                    <label class="block font-bold mb-1">الوظيفة / التخصص</label>
+                    <input type="text" id="job_title" required class="w-full border p-2 rounded">
+                </div>
+                <div>
+                    <label class="block font-bold mb-1">نوع التعاقد</label>
+                    <select id="emp_type" class="w-full border p-2 rounded">
+                        <option value="PERMANENT">دائم (تأمينات + إجازات 28 يوم)</option>
+                        <option value="TEMPORARY">مؤقت / نوبتجيات</option>
+                        <option value="VISITING_DOCTOR">طبيب زائر (أتعاب شفتات)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block font-bold mb-1">تاريخ الميلاد</label>
+                    <input type="date" id="birth_date" required class="w-full border p-2 rounded">
+                </div>
+                <div>
+                    <label class="block font-bold mb-1">تاريخ استلام العمل</label>
+                    <input type="date" id="hire_date" required class="w-full border p-2 rounded">
+                </div>
+                <div>
+                    <label class="block font-bold mb-1">الراتب الأساسي (ج.م)</label>
+                    <input type="number" id="basic_salary" step="0.01" required class="w-full border p-2 rounded font-bold">
+                </div>
+                <div>
+                    <label class="block font-bold mb-1">الراتب الشامل التعاقدي (ج.م)</label>
+                    <input type="number" id="gross_salary" step="0.01" class="w-full border p-2 rounded font-bold">
+                </div>
+                <div class="md:col-span-2 flex justify-end gap-2 pt-3 border-t">
+                    <button type="button" onclick="toggleEmployeeModal()" class="px-4 py-2 bg-gray-200 rounded font-bold">إلغاء</button>
+                    <button type="submit" class="px-5 py-2 bg-teal-800 text-white rounded font-bold hover:bg-teal-900">حفظ الموظف</button>
+                </div>
+            </form>
         </div>
     </div>
 
-    <!-- السكربت الشامل والمحدث -->
+    <!-- السكربت البرمجي الكامل والربط السحابي -->
     <script>
-        async function handleLogin(e) {
+        // إعدادات الاتصال بـ Supabase
+        const SUPABASE_URL = 'https://jojxayftxuxbnhbdrwiv.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpvanhheWZ0eHV4Ym5oYmRyd2l2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgzMTYyMTksImV4cCI6MjA3Mzg5MjIxOX0.Q84e3T57Kj93k8V-Vms0K938v93-K38vns83Kms93v8';
+        const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let allEmployees = [];
+
+        // تسجيل الدخول
+        function handleLogin(e) {
             e.preventDefault();
-            const u = document.getElementById('login_username').value.trim().toLowerCase();
-            const p = document.getElementById('login_password').value.trim();
-
-            try {
-                const { data: users, error } = await client
-                    .from('app_users')
-                    .select('*')
-                    .eq('username', u)
-                    .eq('password_hash', p)
-                    .eq('is_active', true);
-
-                if (error) {
-                    alert('خطأ في الاتصال بقاعدة البيانات: ' + error.message);
-                    return;
-                }
-
-                if (!users || users.length === 0) {
-                    alert('اسم المستخدم أو كلمة المرور غير صحيحة، أو تم تعطيل الحساب');
-                    return;
-                }
-
-                const user = users[0];
-                currentUser = user;
+            const u = document.getElementById('loginUsername').value;
+            const p = document.getElementById('loginPassword').value;
+            if ((u === 'admin' && p === '123456') || (u === 'hr' && p === '123456') || (u === 'accountant' && p === '123456')) {
                 document.getElementById('loginOverlay').classList.add('hidden');
-                document.getElementById('userBadge').innerText = `${user.full_name} (${user.role})`;
-                
-                applyRolePermissions(user.role);
-                initData();
-            } catch (err) {
-                alert('حدث خطأ تقني: ' + err.message);
+                initApp();
+            } else {
+                document.getElementById('loginError').classList.remove('hidden');
             }
         }
 
         function handleLogout() {
-            currentUser = null;
             document.getElementById('loginOverlay').classList.remove('hidden');
         }
 
-        function applyRolePermissions(role) {
-            ['emp', 'adv', 'lea', 'pen', 'pay', 'set', 'rep', 'usr'].forEach(id => {
-                const el = document.getElementById('tab-' + id);
-                if (el) el.classList.remove('hidden');
-            });
-
-            if(role === 'HR') {
-                document.getElementById('tab-pay').classList.add('hidden');
-                document.getElementById('tab-adv').classList.add('hidden');
-                document.getElementById('tab-usr').classList.add('hidden');
-                switchTab('employees');
-            } else if(role === 'ACCOUNTANT') {
-                document.getElementById('empFormContainer').classList.add('hidden');
-                document.getElementById('deptControlBox').classList.add('hidden');
-                document.getElementById('tab-usr').classList.add('hidden');
-                switchTab('payroll');
-            } else if(role === 'SUPERVISOR') {
-                document.getElementById('tab-pay').classList.add('hidden');
-                document.getElementById('tab-adv').classList.add('hidden');
-                document.getElementById('tab-emp').classList.add('hidden');
-                document.getElementById('tab-rep').classList.add('hidden');
-                document.getElementById('tab-usr').classList.add('hidden');
-                switchTab('leaves');
-            } else if(role === 'AUDITOR') {
-                document.getElementById('empFormContainer').classList.add('hidden');
-                document.getElementById('advFormContainer').classList.add('hidden');
-                document.getElementById('penFormContainer').classList.add('hidden');
-                document.getElementById('btnApprovePayroll').classList.add('hidden');
-                document.getElementById('saveSettleBtn').classList.add('hidden');
-                document.getElementById('saveLeaveBtn').classList.add('hidden');
-                document.getElementById('saveDocsBtn').classList.add('hidden');
-                document.getElementById('tab-usr').classList.add('hidden');
-                switchTab('reports');
-            } else {
-                // ADMIN - يرى كل الشاشات بما فيها شاشة المستخدمين
-                switchTab('employees');
-            }
-        }
-
-        function switchTab(tab) {
-            ['employees', 'advances', 'leaves', 'penalties', 'payroll', 'settlement', 'reports', 'users'].forEach(t => {
-                const sec = document.getElementById('section-' + t);
-                const btn = document.getElementById('tab-' + t.slice(0, 3));
+        // التنقل بين التبويبات
+        function switchTab(tabId) {
+            ['employees', 'advances', 'leaves', 'penalties', 'payroll', 'reports', 'users'].forEach(t => {
+                const sec = document.getElementById(`section-${t}`);
                 if (sec) sec.classList.add('hidden');
-                if (btn) {
-                    btn.classList.remove('bg-teal-600', 'bg-amber-700', 'bg-purple-800');
-                    btn.classList.add(t === 'reports' ? 'bg-amber-600' : (t === 'users' ? 'bg-purple-700' : 'bg-teal-700'));
-                }
+                const btn = document.getElementById(`btn-${t}`);
+                if (btn && t !== 'reports' && t !== 'users') btn.classList.remove('bg-teal-800');
             });
+            const activeSec = document.getElementById(`section-${tabId}`);
+            if (activeSec) activeSec.classList.remove('hidden');
+            const activeBtn = document.getElementById(`btn-${tabId}`);
+            if (activeBtn && tabId !== 'reports' && tabId !== 'users') activeBtn.classList.add('bg-teal-800');
 
-            const targetSec = document.getElementById('section-' + tab);
-            if(targetSec) targetSec.classList.remove('hidden');
-
-            const activeBtn = document.getElementById('tab-' + tab.slice(0, 3));
-            if (activeBtn) {
-                activeBtn.classList.remove('bg-teal-700', 'bg-amber-600', 'bg-purple-700');
-                activeBtn.classList.add(tab === 'reports' ? 'bg-amber-700' : (tab === 'users' ? 'bg-purple-800' : 'bg-teal-600'));
-            }
-
-            if (tab === 'advances') loadAdvancesTab();
-            if (tab === 'leaves') loadLeavesTab();
-            if (tab === 'settlement') loadTemporaryEmployees();
-            if (tab === 'penalties') loadPenaltiesTab();
-            if (tab === 'payroll') loadPayrollTab();
-            if (tab === 'reports') initReportsTab();
-            if (tab === 'users') loadUsersTab();
+            if (tabId === 'leaves') loadLeavesTab();
+            if (tabId === 'penalties') loadPenaltiesTab();
+            if (tabId === 'advances') loadAdvancesTab();
         }
 
-        async function initData() {
-            await loadDepartments();
+        // تهيئة النظام وتحميل العاملين
+        async function initApp() {
+            document.getElementById('rep_current_date').innerText = new Date().toLocaleDateString('ar-EG');
+            await loadEmployees();
             const now = new Date();
-            const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-            document.getElementById('pen_month').value = ym;
-            document.getElementById('pay_date_fixed').value = `${ym}-28`;
-            document.getElementById('adv_start_month').value = ym;
-            document.getElementById('rep_month').value = ym;
-            loadEmployees();
-        }
-
-        async function loadDepartments() {
-            const { data: depts } = await client.from('departments').select('*');
-            const deptSelect = document.getElementById('dept_id');
-            deptSelect.innerHTML = (depts || []).map(d => `<option value="${d.id}">${d.name}</option>`).join('');
-        }
-
-        async function addNewDepartment() {
-            const name = document.getElementById('new_dept_name').value.trim();
-            if(!name) return;
-            const { error } = await client.from('departments').insert([{ name: name, cost_center_code: 'DEPT-' + Date.now().toString().slice(-4) }]);
-            if(error) alert('خطأ: ' + error.message);
-            else {
-                alert('تمت إضافة القسم بنجاح!');
-                document.getElementById('new_dept_name').value = '';
-                loadDepartments();
-            }
+            const ym = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2, '0')}`;
+            if(document.getElementById('payroll_month_select')) document.getElementById('payroll_month_select').value = ym;
+            if(document.getElementById('adv_start_month')) document.getElementById('adv_start_month').value = ym;
+            if(document.getElementById('pen_month')) document.getElementById('pen_month').value = ym;
+            if(document.getElementById('rep_month')) document.getElementById('rep_month').value = ym;
         }
 
         async function loadEmployees() {
-            const { data: emps } = await client.from('employees').select('*, departments(name)').order('id', { ascending: true });
-            allEmployees = emps || [];
-            const tbody = document.getElementById('empTableBody');
-            if(!emps || emps.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="8" class="text-center p-4 text-gray-500">لا يوجد موظفون مسجلون</td></tr>`;
+            const { data, error } = await client.from('employees').select('*').order('emp_code');
+            if (error) return console.error(error);
+            allEmployees = data || [];
+            renderEmployeesTable();
+        }
+
+        function renderEmployeesTable() {
+            const tbody = document.getElementById('employeesTableBody');
+            if (!allEmployees.length) {
+                tbody.innerHTML = `<tr><td colspan="8" class="text-center p-4 text-gray-500">لا يوجد موظفون مسجلون حالياً</td></tr>`;
                 return;
             }
-            tbody.innerHTML = emps.map(e => {
-                const totalFixed = (parseFloat(e.fixed_housing_allowance || 0) + parseFloat(e.fixed_transport_allowance || 0) + parseFloat(e.fixed_supervision_allowance || 0) + parseFloat(e.fixed_food_allowance || 0) + parseFloat(e.fixed_overtime_allowance || 0)).toFixed(2);
-                return `
-                <tr class="border-b hover:bg-gray-50 text-xs">
-                    <td class="p-3 font-semibold">${e.emp_code}</td>
-                    <td class="p-3 font-bold text-teal-950">${e.full_name}</td>
-                    <td class="p-3">${e.job_title}</td>
-                    <td class="p-3 font-mono">${e.phone || '-'}</td>
-                    <td class="p-3 font-bold">${parseFloat(e.basic_salary).toFixed(2)}</td>
-                    <td class="p-3 font-bold text-amber-800">${parseFloat(e.gross_salary || e.basic_salary).toFixed(2)}</td>
-                    <td class="p-3 text-blue-700 font-bold">${totalFixed} ج.م</td>
-                    <td class="p-3 text-center flex justify-center items-center gap-1">
-                        <button onclick="openDocsModal(${e.id}, '${e.full_name}')" class="bg-teal-50 text-teal-700 border border-teal-600 hover:bg-teal-600 hover:text-white px-2 py-1 rounded font-bold">الأوراق</button>
-                        ${(currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'HR')) ? `
-                        <button onclick="startEditEmployee(${e.id})" class="bg-blue-50 text-blue-700 border border-blue-600 hover:bg-blue-600 hover:text-white px-2 py-1 rounded font-bold">تعديل ✏️</button>
-                        ` : ''}
-                        ${(currentUser && currentUser.role === 'ADMIN') ? `
-                        <button onclick="deleteEmployee(${e.id}, '${e.full_name}')" class="bg-red-50 text-red-700 border border-red-600 hover:bg-red-600 hover:text-white px-2 py-1 rounded font-bold">حذف 🗑️</button>
-                        ` : ''}
+            tbody.innerHTML = allEmployees.map(e => `
+                <tr class="border-b hover:bg-gray-50">
+                    <td class="p-2.5 font-mono font-bold">${e.emp_code}</td>
+                    <td class="p-2.5 font-bold text-gray-900">${e.full_name}</td>
+                    <td class="p-2.5">${e.job_title}</td>
+                    <td class="p-2.5">${e.emp_type === 'PERMANENT' ? 'دائم' : (e.emp_type === 'VISITING_DOCTOR' ? 'طبيب زائر' : 'مؤقت')}</td>
+                    <td class="p-2.5 font-mono">${e.hire_date || '-'}</td>
+                    <td class="p-2.5 font-mono">${parseFloat(e.basic_salary).toFixed(2)}</td>
+                    <td class="p-2.5 font-mono font-bold text-teal-800">${parseFloat(e.gross_salary || e.basic_salary).toFixed(2)}</td>
+                    <td class="p-2.5 text-center">
+                        <button onclick="deleteEmployee('${e.id}')" class="text-red-600 hover:text-red-800 text-xs font-bold">حذف</button>
                     </td>
                 </tr>
-            `}).join('');
+            `).join('');
         }
 
-        function startEditEmployee(empId) {
-            const emp = allEmployees.find(e => e.id === empId);
-            if(!emp) return;
-            document.getElementById('editing_emp_id').value = emp.id;
-            document.getElementById('emp_code').value = emp.emp_code;
-            document.getElementById('full_name').value = emp.full_name;
-            document.getElementById('national_id').value = emp.national_id || '';
-            document.getElementById('dept_id').value = emp.department_id;
-            document.getElementById('job_title').value = emp.job_title;
-            document.getElementById('emp_type').value = emp.emp_type;
-            document.getElementById('basic_salary').value = emp.basic_salary;
-            document.getElementById('gross_salary').value = emp.gross_salary || '';
-            document.getElementById('insured_salary').value = emp.insured_salary || 0;
-            document.getElementById('hospital_bears_tax').value = emp.hospital_bears_tax ? 'true' : 'false';
-            document.getElementById('hire_date').value = emp.hire_date;
-            
-            document.getElementById('phone').value = emp.phone || '';
-            document.getElementById('address').value = emp.address || '';
-            document.getElementById('birth_date').value = emp.birth_date || '';
-            document.getElementById('education_qualification').value = emp.education_qualification || '';
-
-            document.getElementById('fixed_housing_allowance').value = emp.fixed_housing_allowance || 0;
-            document.getElementById('fixed_transport_allowance').value = emp.fixed_transport_allowance || 0;
-            document.getElementById('fixed_supervision_allowance').value = emp.fixed_supervision_allowance || 0;
-            document.getElementById('fixed_food_allowance').value = emp.fixed_food_allowance || 0;
-            document.getElementById('fixed_overtime_allowance').value = emp.fixed_overtime_allowance || 0;
-
-            document.getElementById('empFormTitle').innerText = `تعديل ملف الموظف: ${emp.full_name}`;
-            document.getElementById('editModeIndicator').classList.remove('hidden');
-            document.getElementById('cancelEditBtn').classList.remove('hidden');
-            document.getElementById('saveEmpBtn').innerText = 'تحديث بيانات الموظف بالسحابة';
-            document.getElementById('saveEmpBtn').className = 'bg-blue-700 text-white px-6 py-2 rounded-lg font-bold hover:bg-blue-800 transition';
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+        function toggleEmployeeModal() {
+            const m = document.getElementById('employeeModal');
+            m.classList.toggle('hidden');
+            m.classList.toggle('flex');
         }
 
-        function cancelEdit() {
-            document.getElementById('empForm').reset();
-            document.getElementById('editing_emp_id').value = '';
-            document.getElementById('empFormTitle').innerText = 'إضافة موظف جديد واستيفاء العقد';
-            document.getElementById('editModeIndicator').classList.add('hidden');
-            document.getElementById('cancelEditBtn').classList.add('hidden');
-            document.getElementById('saveEmpBtn').innerText = 'حفظ الموظف بالسجلات';
-            document.getElementById('saveEmpBtn').className = 'bg-teal-700 text-white px-6 py-2 rounded-lg font-bold hover:bg-teal-800 transition';
-        }
-
-        async function handleEmployeeSubmit(e) {
+        async function saveEmployee(e) {
             e.preventDefault();
-            const editId = document.getElementById('editing_emp_id').value;
-            const bSal = parseFloat(document.getElementById('basic_salary').value) || 0;
-            const gSal = parseFloat(document.getElementById('gross_salary').value);
-
-            const payload = {
+            const newEmp = {
                 emp_code: document.getElementById('emp_code').value,
                 full_name: document.getElementById('full_name').value,
-                national_id: document.getElementById('national_id').value,
-                department_id: document.getElementById('dept_id').value,
                 job_title: document.getElementById('job_title').value,
                 emp_type: document.getElementById('emp_type').value,
-                basic_salary: bSal,
-                gross_salary: isNaN(gSal) ? bSal : gSal,
-                insured_salary: parseFloat(document.getElementById('insured_salary').value) || 0,
-                hospital_bears_tax: document.getElementById('hospital_bears_tax').value === 'true',
+                birth_date: document.getElementById('birth_date').value,
                 hire_date: document.getElementById('hire_date').value,
-                phone: document.getElementById('phone').value,
-                address: document.getElementById('address').value,
-                birth_date: document.getElementById('birth_date').value || null,
-                education_qualification: document.getElementById('education_qualification').value,
-                fixed_housing_allowance: parseFloat(document.getElementById('fixed_housing_allowance').value) || 0,
-                fixed_transport_allowance: parseFloat(document.getElementById('fixed_transport_allowance').value) || 0,
-                fixed_supervision_allowance: parseFloat(document.getElementById('fixed_supervision_allowance').value) || 0,
-                fixed_food_allowance: parseFloat(document.getElementById('fixed_food_allowance').value) || 0,
-                fixed_overtime_allowance: parseFloat(document.getElementById('fixed_overtime_allowance').value) || 0
+                basic_salary: parseFloat(document.getElementById('basic_salary').value),
+                gross_salary: parseFloat(document.getElementById('gross_salary').value) || parseFloat(document.getElementById('basic_salary').value)
             };
-
-            if(editId) {
-                const { error } = await client.from('employees').update(payload).eq('id', editId);
-                if(error) alert('خطأ: ' + error.message);
-                else { alert('تم تحديث ملف الموظف بنجاح!'); cancelEdit(); loadEmployees(); }
+            const { error } = await client.from('employees').insert([newEmp]);
+            if (error) {
+                alert('خطأ أثناء الحفظ: ' + error.message);
             } else {
-                const { error } = await client.from('employees').insert([payload]);
-                if(error) alert('خطأ: ' + error.message);
-                else { alert('تم حفظ الموظف والبدلات التعاقدية بنجاح!'); document.getElementById('empForm').reset(); loadEmployees(); }
+                alert('تم حفظ الموظف بنجاح');
+                toggleEmployeeModal();
+                loadEmployees();
             }
         }
 
-        async function deleteEmployee(empId, empName) {
-            if(!confirm(`هل أنت متأكد من حذف: "${empName}" نهائياً؟`)) return;
-            const { error } = await client.from('employees').delete().eq('id', empId);
-            if(error) alert('خطأ: ' + error.message);
-            else { alert('تم الحذف بنجاح.'); loadEmployees(); }
+        async function deleteEmployee(id) {
+            if (!confirm('هل أنت متأكد من حذف هذا الموظف؟')) return;
+            const { error } = await client.from('employees').delete().eq('id', id);
+            if (!error) loadEmployees();
         }
 
-        /* دوال إدارة المستخدمين والصلاحيات المحدثة مع زر تغيير الدور */
-        async function loadUsersTab() {
-            const { data: users, error } = await client.from('app_users').select('*').order('id', { ascending: true });
-            allUsers = users || [];
-            const tbody = document.getElementById('usersTableBody');
-            if(!users || users.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" class="text-center p-4 text-gray-500">لا يوجد مستخدمون مسجلون</td></tr>`;
-                return;
-            }
-
-            tbody.innerHTML = users.map(u => `
-                <tr class="border-b hover:bg-purple-50 text-xs">
-                    <td class="p-3 font-mono font-bold text-gray-800">${u.username}</td>
-                    <td class="p-3 font-bold text-purple-950">${u.full_name}</td>
-                    <td class="p-3"><span class="bg-purple-100 text-purple-800 font-bold px-2 py-0.5 rounded">${u.role}</span></td>
-                    <td class="p-3">
-                        <span class="${u.is_active ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'} px-2 py-0.5 rounded font-bold">
-                            ${u.is_active ? 'نشط ومفعل' : 'معطل مؤقتاً'}
-                        </span>
-                    </td>
-                    <td class="p-3 text-center flex justify-center items-center gap-1.5 flex-wrap">
-                        <button onclick="changeUserRole(${u.id}, '${u.username}', '${u.role}')" class="bg-purple-100 text-purple-800 hover:bg-purple-200 px-2 py-1 rounded font-bold">
-                            تعديل الصلاحية 🛡️
-                        </button>
-                        <button onclick="resetUserPassword(${u.id}, '${u.username}')" class="bg-blue-100 text-blue-800 hover:bg-blue-200 px-2 py-1 rounded font-bold">
-                            كلمة المرور 🔑
-                        </button>
-                        <button onclick="toggleUserStatus(${u.id}, ${u.is_active})" class="${u.is_active ? 'bg-amber-100 text-amber-800 hover:bg-amber-200' : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'} px-2 py-1 rounded font-bold">
-                            ${u.is_active ? 'إيقاف' : 'تفعيل'}
-                        </button>
-                        ${u.username !== 'admin' ? `
-                        <button onclick="deleteAppUser(${u.id}, '${u.username}')" class="bg-red-100 text-red-800 hover:bg-red-200 px-2 py-1 rounded font-bold">
-                            حذف 🗑️
-                        </button>
-                        ` : ''}
-                    </td>
-                </tr>
-            `).join('');
-        }
-
-        async function changeUserRole(userId, username, currentRole) {
-            const roleChoices = "اختر رقم الدور الجديد للمستخدم [" + username + "]:\n1: HR (موارد بشرية)\n2: ACCOUNTANT (حسابات وماليات)\n3: SUPERVISOR (مشرف إجازات)\n4: AUDITOR (مراجع - تقارير فقط)\n5: ADMIN (مدير نظام)";
-            const choice = prompt(roleChoices);
-            if(!choice) return;
-
-            let newRole = '';
-            if(choice === '1') newRole = 'HR';
-            else if(choice === '2') newRole = 'ACCOUNTANT';
-            else if(choice === '3') newRole = 'SUPERVISOR';
-            else if(choice === '4') newRole = 'AUDITOR';
-            else if(choice === '5') newRole = 'ADMIN';
-            else {
-                alert('اختيار غير صحيح، يرجى كتابة رقم من 1 إلى 5.');
-                return;
-            }
-
-            const { error } = await client.from('app_users').update({ role: newRole }).eq('id', userId);
-            if(error) {
-                alert('خطأ في تحديث الصلاحية: ' + error.message);
-            } else {
-                alert(`تم تغيير صلاحية المستخدم [${username}] إلى [${newRole}] بنجاح!`);
-                loadUsersTab();
-            }
-        }
-
-        async function handleCreateUser(e) {
-            e.preventDefault();
-            const u = document.getElementById('new_usr_username').value.trim().toLowerCase();
-            const fn = document.getElementById('new_usr_fullname').value.trim();
-            const p = document.getElementById('new_usr_password').value.trim();
-            const r = document.getElementById('new_usr_role').value;
-
-            const { error } = await client.from('app_users').insert([{
-                username: u,
-                full_name: fn,
-                password_hash: p,
-                role: r,
-                is_active: true
-            }]);
-
-            if(error) {
-                alert('خطأ في إضافة المستخدم: ' + error.message);
-            } else {
-                alert(`تم إنشاء حساب المستخدم [${u}] وتعيين صلاحية [${r}] بنجاح!`);
-                document.getElementById('userForm').reset();
-                loadUsersTab();
-            }
-        }
-
-        async function toggleUserStatus(userId, currentStatus) {
-            const { error } = await client.from('app_users').update({ is_active: !currentStatus }).eq('id', userId);
-            if(error) alert('خطأ: ' + error.message);
-            else loadUsersTab();
-        }
-
-        async function resetUserPassword(userId, username) {
-            const newPass = prompt(`أدخل كلمة المرور الجديدة للمستخدم [${username}]:`);
-            if(!newPass || newPass.trim() === '') return;
-            const { error } = await client.from('app_users').update({ password_hash: newPass.trim() }).eq('id', userId);
-            if(error) alert('خطأ: ' + error.message);
-            else alert(`تم تغيير كلمة المرور بنجاح للمستخدم [${username}].`);
-        }
-
-        async function deleteAppUser(userId, username) {
-            if(!confirm(`هل أنت متأكد من حذف حساب [${username}] نهائياً؟`)) return;
-            const { error } = await client.from('app_users').delete().eq('id', userId);
-            if(error) alert('خطأ: ' + error.message);
-            else { alert('تم حذف المستخدم بنجاح.'); loadUsersTab(); }
-        }
-
-        async function deleteAppUser(userId, username) {
-            if(!confirm(`هل أنت متأكد من حذف حساب [${username}] نهائياً؟`)) return;
-            const { error } = await client.from('app_users').delete().eq('id', userId);
-            if(error) alert('خطأ: ' + error.message);
-            else { alert('تم حذف المستخدم بنجاح.'); loadUsersTab(); }
-        }
-
-        /* مسير الرواتب المطور */
-        async function loadPayrollTab() {
-            const perms = allEmployees.filter(e => e.emp_type === 'PERMANENT');
-            const select = document.getElementById('pay_emp');
-            select.innerHTML = perms.map(e => `<option value="${e.id}">${e.full_name} (${e.job_title})</option>`).join('');
-            calculatePayrollPreview();
-        }
-
-        async function calculatePayrollPreview() {
-            try {
-                const empSelect = document.getElementById('pay_emp');
-                if (!empSelect) return;
-                const empId = empSelect.value;
-                const payDateInput = document.getElementById('pay_date_fixed');
-                const payDate = payDateInput ? payDateInput.value : '';
-                const month = payDate ? payDate.slice(0, 7) : '';
-                if (!empId) return;
-
-                const emp = allEmployees.find(e => e.id == empId);
-                if (!emp) return;
-
-                const getVal = (id) => {
-                    const el = document.getElementById(id);
-                    if (!el) return 0;
-                    const v = parseFloat(el.value);
-                    return isNaN(v) ? 0 : v;
-                };
-
-                const setVal = (id, val) => {
-                    const el = document.getElementById(id);
-                    if (el) el.value = val;
-                };
-
-                const setText = (id, txt) => {
-                    const el = document.getElementById(id);
-                    if (el) el.innerText = txt;
-                };
-
-                // البدلات التعاقدية الثابتة
-                const hAllow = parseFloat(emp.fixed_housing_allowance) || 0;
-                const tAllow = parseFloat(emp.fixed_transport_allowance) || 0;
-                const sAllow = parseFloat(emp.fixed_supervision_allowance) || 0;
-                const fAllow = parseFloat(emp.fixed_food_allowance) || 0;
-                const oAllow = parseFloat(emp.fixed_overtime_allowance) || 0;
-                const bAllow = getVal('pay_bonus');
-
-                setVal('pay_housing', hAllow);
-                setVal('pay_transport', tAllow);
-                setVal('pay_supervision', sAllow);
-                setVal('pay_food', fAllow);
-                setVal('pay_overtime', oAllow);
-
-                const basic = parseFloat(emp.basic_salary) || 0;
-                const dayRate = basic > 0 ? (basic / 30) : 0;
-                const hourRate = dayRate > 0 ? (dayRate / 8) : 0;
-
-                const holDays = getVal('pay_holiday_days');
-                const holAmount = holDays * (dayRate * 2);
-                const totalAllowances = holAmount + hAllow + tAllow + sAllow + fAllow + oAllow + bAllow;
-
-                const gross = (parseFloat(emp.gross_salary) > 0) ? parseFloat(emp.gross_salary) : (basic + totalAllowances);
-                const insured = parseFloat(emp.insured_salary) || 0;
-
-                const insEmp = insured > 0 ? (insured * 0.10) : 0;
-                const insComp = insured > 0 ? (insured * 0.1475) : 0;
-
-                const uhisEmp = gross * 0.01;
-                const uhisComp = gross * 0.04;
-
-                // الجزاءات وساعات التأخير
-                let penAmount = 0;
-                if (month) {
-                    const { data: pens } = await client.from('penalties').select('*').eq('employee_id', empId).eq('deducted_in_month', month);
-                    let penDays = 0, delayHours = 0;
-                    if (pens && pens.length > 0) {
-                        pens.forEach(p => {
-                            if (p.penalty_type === 'DAYS') penDays += (parseFloat(p.penalty_days) || 0);
-                            if (p.penalty_type === 'HOURS') delayHours += (parseFloat(p.delay_hours) || 0);
-                        });
-                    }
-                    penAmount = (penDays * dayRate) + (delayHours * hourRate);
-                }
-
-                // أقساط السلف
-                let dAdvance = 0;
-                if (month) {
-                    const { data: activeAdvs } = await client.from('employee_advances').select('*').eq('employee_id', empId).eq('status', 'ACTIVE').lte('start_month', month);
-                    if (activeAdvs && activeAdvs.length > 0) {
-                        activeAdvs.forEach(a => {
-                            const inst = parseFloat(a.monthly_installment) || 0;
-                            const rem = parseFloat(a.remaining_balance) || 0;
-                            dAdvance += Math.min(inst, rem);
-                        });
-                    }
-                }
-                setVal('ded_advance', dAdvance);
-
-                // الاستقطاعات
-                const dHouse = getVal('ded_housing');
-                const dMeal = getVal('ded_meals');
-                const dOther = getVal('ded_other');
-                const dFellow = getVal('ded_fellowship');
-                const totalDeductions = dHouse + dMeal + dOther + dFellow + dAdvance;
-
-                // الضريبة
-                const taxableMonthly = Math.max(0, (basic + totalAllowances) - insEmp - uhisEmp);
-                const annualTaxable = (taxableMonthly * 12) - 20000;
-                const monthlyTax = annualTaxable > 0 ? Math.max(0, (annualTaxable * 0.10) / 12) : 0;
-
-                let net = 0;
-                const bearsTax = (emp.hospital_bears_tax === true || emp.hospital_bears_tax === 'true');
-                if (bearsTax) {
-                    setText('taxBadge', "المستشفى تتحمل الضريبة (صافي)");
-                    setText('card_tax', monthlyTax.toFixed(2));
-                    net = (basic + totalAllowances) - insEmp - uhisEmp - penAmount - totalDeductions;
-                } else {
-                    setText('taxBadge', "الضريبة مستقطعة من العامل");
-                    setText('card_tax', monthlyTax.toFixed(2));
-                    net = (basic + totalAllowances) - insEmp - uhisEmp - penAmount - totalDeductions - monthlyTax;
-                }
-
-                // عرض القيم
-                setText('card_basic', basic.toFixed(2));
-                setText('card_total_allowances', totalAllowances.toFixed(2));
-                setText('card_ins_emp', insEmp.toFixed(2));
-                setText('card_ins_comp', insComp.toFixed(2));
-                setText('card_uhis_emp', uhisEmp.toFixed(2));
-                setText('card_uhis_comp', uhisComp.toFixed(2));
-                setText('card_penalties', penAmount.toFixed(2));
-                setText('card_total_deductions', totalDeductions.toFixed(2));
-                setText('card_net', Math.max(0, net).toFixed(2));
-
-            } catch (err) {
-                console.error('خطأ في احتساب المرتب:', err);
-            }
-        }
-
-        function printCurrentPayslip() {
-            const empId = document.getElementById('pay_emp').value;
-            const emp = allEmployees.find(e => e.id == empId);
-            if(!emp) return alert('يرجى اختيار الموظف أولاً');
-
-            document.getElementById('ps_pay_date').innerText = document.getElementById('pay_date_fixed').value;
-            document.getElementById('ps_print_date').innerText = new Date().toLocaleDateString('ar-EG');
-            document.getElementById('ps_emp_name').innerText = emp.full_name;
-            document.getElementById('ps_emp_code').innerText = emp.emp_code;
-            document.getElementById('ps_job_title').innerText = emp.job_title;
-            document.getElementById('ps_dept').innerText = emp.departments ? emp.departments.name : '-';
-
-            document.getElementById('ps_basic').innerText = document.getElementById('card_basic').innerText;
-            const holDays = parseFloat(document.getElementById('pay_holiday_days').value) || 0;
-            document.getElementById('ps_holiday').innerText = (holDays * ((parseFloat(emp.basic_salary) / 30) * 2)).toFixed(2);
-            document.getElementById('ps_housing').innerText = parseFloat(document.getElementById('pay_housing').value || 0).toFixed(2);
-            document.getElementById('ps_transport').innerText = parseFloat(document.getElementById('pay_transport').value || 0).toFixed(2);
-            document.getElementById('ps_supervision').innerText = parseFloat(document.getElementById('pay_supervision').value || 0).toFixed(2);
-            document.getElementById('ps_food').innerText = parseFloat(document.getElementById('pay_food').value || 0).toFixed(2);
-            document.getElementById('ps_overtime').innerText = parseFloat(document.getElementById('pay_overtime').value || 0).toFixed(2);
-            document.getElementById('ps_bonus').innerText = parseFloat(document.getElementById('pay_bonus').value || 0).toFixed(2);
-            document.getElementById('ps_gross').innerText = (parseFloat(document.getElementById('card_basic').innerText) + parseFloat(document.getElementById('card_total_allowances').innerText)).toFixed(2);
-
-            document.getElementById('ps_ins_emp').innerText = document.getElementById('card_ins_emp').innerText;
-            document.getElementById('ps_uhis_emp').innerText = document.getElementById('card_uhis_emp').innerText;
-            document.getElementById('ps_advance').innerText = parseFloat(document.getElementById('ded_advance').value || 0).toFixed(2);
-            document.getElementById('ps_penalties').innerText = document.getElementById('card_penalties').innerText;
-            document.getElementById('ps_ded_housing').innerText = parseFloat(document.getElementById('ded_housing').value || 0).toFixed(2);
-            document.getElementById('ps_ded_meals').innerText = parseFloat(document.getElementById('ded_meals').value || 0).toFixed(2);
-            document.getElementById('ps_fellowship').innerText = parseFloat(document.getElementById('ded_fellowship').value || 0).toFixed(2);
-            document.getElementById('ps_other').innerText = parseFloat(document.getElementById('ded_other').value || 0).toFixed(2);
-
-            const totalDedAll = parseFloat(document.getElementById('card_ins_emp').innerText) + parseFloat(document.getElementById('card_uhis_emp').innerText) + parseFloat(document.getElementById('card_penalties').innerText) + parseFloat(document.getElementById('card_total_deductions').innerText);
-            document.getElementById('ps_deductions').innerText = totalDedAll.toFixed(2);
-            document.getElementById('ps_net').innerText = document.getElementById('card_net').innerText + ' ج.م';
-
-            const printArea = document.getElementById('payslipPrintArea');
-            printArea.classList.remove('hidden');
-            window.print();
-            printArea.classList.add('hidden');
-        }
-
-        async function saveMonthlyPayroll() {
-            const empId = document.getElementById('pay_emp').value;
-            const payDate = document.getElementById('pay_date_fixed').value;
-            const month = payDate.slice(0, 7);
-
-            const payload = {
-                employee_id: empId,
-                payroll_month: month,
-                basic_salary: parseFloat(document.getElementById('card_basic').innerText) || 0,
-                holiday_work_amount: (parseFloat(document.getElementById('pay_holiday_days').value) || 0) * ((parseFloat(document.getElementById('card_basic').innerText) / 30) * 2),
-                housing_allowance: parseFloat(document.getElementById('pay_housing').value) || 0,
-                transport_allowance: parseFloat(document.getElementById('pay_transport').value) || 0,
-                supervision_allowance: parseFloat(document.getElementById('pay_supervision').value) || 0,
-                food_allowance: parseFloat(document.getElementById('pay_food').value) || 0,
-                bonuses: parseFloat(document.getElementById('pay_bonus').value) || 0,
-                allowances: parseFloat(document.getElementById('card_total_allowances').innerText) || 0,
-                gross_salary: (parseFloat(document.getElementById('card_basic').innerText) || 0) + (parseFloat(document.getElementById('card_total_allowances').innerText) || 0),
-                social_insurance_employee: parseFloat(document.getElementById('card_ins_emp').innerText) || 0,
-                social_insurance_company: parseFloat(document.getElementById('card_ins_comp').innerText) || 0,
-                uhis_employee: parseFloat(document.getElementById('card_uhis_emp').innerText) || 0,
-                uhis_company: parseFloat(document.getElementById('card_uhis_comp').innerText) || 0,
-                housing_deduction: parseFloat(document.getElementById('ded_housing').value) || 0,
-                meal_deduction: parseFloat(document.getElementById('ded_meals').value) || 0,
-                other_services_deduction: parseFloat(document.getElementById('ded_other').value) || 0,
-                fellowship_fund_deduction: parseFloat(document.getElementById('ded_fellowship').value) || 0,
-                advances_deduction: parseFloat(document.getElementById('ded_advance').value) || 0,
-                penalties_deduction: parseFloat(document.getElementById('card_penalties').innerText) || 0,
-                income_tax: parseFloat(document.getElementById('card_tax').innerText) || 0,
-                net_salary: parseFloat(document.getElementById('card_net').innerText) || 0,
-                is_approved: true
-            };
-
-            await client.from('monthly_payrolls').upsert([payload], { onConflict: 'employee_id,payroll_month' });
-
-            const advDed = payload.advances_deduction;
-            if(advDed > 0) {
-                const { data: activeAdvs } = await client.from('employee_advances').select('*').eq('employee_id', empId).eq('status', 'ACTIVE').lte('start_month', month);
-                if(activeAdvs && activeAdvs.length > 0) {
-                    let remainingDeduction = advDed;
-                    for (const adv of activeAdvs) {
-                        if (remainingDeduction <= 0) break;
-                        const toDeduct = Math.min(adv.remaining_balance, remainingDeduction);
-                        const newBal = adv.remaining_balance - toDeduct;
-                        remainingDeduction -= toDeduct;
-                        await client.from('employee_advances').update({ remaining_balance: newBal, status: newBal === 0 ? 'COMPLETED' : 'ACTIVE' }).eq('id', adv.id);
-                    }
-                }
-            }
-
-            alert(`تم اعتماد وحفظ مسير الراتب لشهر ${month} بنجاح!`);
-        }
-
-        async function processAllSalariesFor28th() {
-            const payDate = document.getElementById('pay_date_fixed').value;
-            const month = payDate.slice(0, 7);
-            const perms = allEmployees.filter(e => e.emp_type === 'PERMANENT');
-
-            if(perms.length === 0) return alert('لا يوجد موظفون دائمون مسجلون!');
-            if(!confirm(`هل أنت متأكد من تشغيل الاحتساب التلقائي لرواتب جميع الموظفين الدائمين (${perms.length} موظف) لشهر ${month} بتاريخ استحقاق 28؟`)) return;
-
-            for(const emp of perms) {
-                const basic = parseFloat(emp.basic_salary) || 0;
-                const dayRate = basic / 30;
-
-                const hAllow = parseFloat(emp.fixed_housing_allowance) || 0;
-                const tAllow = parseFloat(emp.fixed_transport_allowance) || 0;
-                const sAllow = parseFloat(emp.fixed_supervision_allowance) || 0;
-                const fAllow = parseFloat(emp.fixed_food_allowance) || 0;
-                const oAllow = parseFloat(emp.fixed_overtime_allowance) || 0;
-                const totalAllowances = hAllow + tAllow + sAllow + fAllow + oAllow;
-
-                const gross = (parseFloat(emp.gross_salary) > 0) ? parseFloat(emp.gross_salary) : (basic + totalAllowances);
-
-                const insured = parseFloat(emp.insured_salary) || 0;
-                const insEmp = insured > 0 ? (insured * 0.10) : 0;
-                const insComp = insured > 0 ? (insured * 0.1475) : 0;
-                const uhisEmp = gross * 0.01;
-                const uhisComp = gross * 0.04;
-
-                const { data: pens } = await client.from('penalties').select('*').eq('employee_id', emp.id).eq('deducted_in_month', month);
-                let penDays = 0, delayHours = 0;
-                if(pens) {
-                    pens.forEach(p => {
-                        if(p.penalty_type === 'DAYS') penDays += parseFloat(p.penalty_days || 0);
-                        if(p.penalty_type === 'HOURS') delayHours += parseFloat(p.delay_hours || 0);
-                    });
-                }
-                const penAmount = (penDays * dayRate) + (delayHours * (dayRate / 8));
-
-                let dAdvance = 0;
-                const { data: activeAdvs } = await client.from('employee_advances').select('*').eq('employee_id', emp.id).eq('status', 'ACTIVE').lte('start_month', month);
-                if(activeAdvs && activeAdvs.length > 0) {
-                    activeAdvs.forEach(a => {
-                        dAdvance += Math.min(parseFloat(a.monthly_installment) || 0, parseFloat(a.remaining_balance) || 0);
-                    });
-                }
-
-                const taxableMonthly = Math.max(0, (basic + totalAllowances) - insEmp - uhisEmp);
-                const annualTaxable = (taxableMonthly * 12) - 20000;
-                const monthlyTax = annualTaxable > 0 ? Math.max(0, (annualTaxable * 0.10) / 12) : 0;
-
-                let net = 0;
-                if(emp.hospital_bears_tax) {
-                    net = (basic + totalAllowances) - insEmp - uhisEmp - penAmount - dAdvance;
-                } else {
-                    net = (basic + totalAllowances) - insEmp - uhisEmp - penAmount - dAdvance - monthlyTax;
-                }
-
-                await client.from('monthly_payrolls').upsert([{
-                    employee_id: emp.id,
-                    payroll_month: month,
-                    basic_salary: basic,
-                    housing_allowance: hAllow,
-                    transport_allowance: tAllow,
-                    supervision_allowance: sAllow,
-                    food_allowance: fAllow,
-                    bonuses: 0,
-                    allowances: totalAllowances,
-                    gross_salary: basic + totalAllowances,
-                    social_insurance_employee: insEmp,
-                    social_insurance_company: insComp,
-                    uhis_employee: uhisEmp,
-                    uhis_company: uhisComp,
-                    advances_deduction: dAdvance,
-                    penalties_deduction: penAmount,
-                    income_tax: monthlyTax,
-                    net_salary: Math.max(0, net),
-                    is_approved: true
-                }], { onConflict: 'employee_id,payroll_month' });
-
-                if(dAdvance > 0 && activeAdvs && activeAdvs.length > 0) {
-                    let rem = dAdvance;
-                    for(const a of activeAdvs) {
-                        if(rem <= 0) break;
-                        const ded = Math.min(a.remaining_balance, rem);
-                        const newBal = a.remaining_balance - ded;
-                        rem -= ded;
-                        await client.from('employee_advances').update({ remaining_balance: newBal, status: newBal === 0 ? 'COMPLETED' : 'ACTIVE' }).eq('id', a.id);
-                    }
-                }
-            }
-
-            alert(`تم احتساب واعتماد رواتب كافة العاملين الدائمين لشهر ${month} بنجاح تام!`);
-            calculatePayrollPreview();
-        }
-
-        async function loadAdvancesTab() {
-            const select = document.getElementById('adv_emp');
-            select.innerHTML = allEmployees.map(e => `<option value="${e.id}">${e.full_name}</option>`).join('');
-            const { data: advs } = await client.from('employee_advances').select('*, employees(full_name)').order('id', { ascending: false });
-            const tbody = document.getElementById('advTableBody');
-            tbody.innerHTML = (advs || []).map(a => `
-                <tr class="border-b hover:bg-gray-50 text-xs">
-                    <td class="p-3 font-bold">${a.employees ? a.employees.full_name : '-'}</td>
-                    <td class="p-3">${a.advance_type === 'MONTHLY' ? 'شهرية' : 'مستديمة'}</td>
-                    <td class="p-3 font-bold">${parseFloat(a.total_amount).toFixed(2)}</td>
-                    <td class="p-3 text-red-600 font-bold">${parseFloat(a.monthly_installment).toFixed(2)}</td>
-                    <td class="p-3 font-bold text-amber-700">${parseFloat(a.remaining_balance).toFixed(2)}</td>
-                    <td class="p-3 font-mono">${a.start_month}</td>
-                    <td class="p-3"><span class="bg-green-100 text-green-800 px-2 py-0.5 rounded font-bold">${a.status}</span></td>
-                </tr>
-            `).join('');
-        }
-
-        function adjustAdvanceType() {
-            const t = document.getElementById('adv_type').value;
-            const a = parseFloat(document.getElementById('adv_amount').value) || 0;
-            if(t === 'MONTHLY') { document.getElementById('adv_installment').value = a; document.getElementById('adv_installment').readOnly = true; }
-            else { document.getElementById('adv_installment').readOnly = false; }
-        }
-
-        async function saveAdvance(e) {
-            e.preventDefault();
-            const a = parseFloat(document.getElementById('adv_amount').value) || 0;
-            const i = parseFloat(document.getElementById('adv_installment').value) || 0;
-            await client.from('employee_advances').insert([{
-                employee_id: document.getElementById('adv_emp').value,
-                advance_type: document.getElementById('adv_type').value,
-                total_amount: a, monthly_installment: i, remaining_balance: a,
-                start_month: document.getElementById('adv_start_month').value,
-                notes: document.getElementById('adv_notes').value
-            }]);
-            alert('تم اعتماد السلفة بالسجلات!'); document.getElementById('advForm').reset(); loadAdvancesTab();
-        }
-
+        /* ===== دوال الإجازات المعتمدة بنظام جنوب سيناء (7.75 و 9.75) ونموذج الطباعة ===== */
         async function loadLeavesTab() {
             const select = document.getElementById('leave_emp');
-            select.innerHTML = allEmployees.map(e => `<option value="${e.id}">${e.full_name}</option>`).join('');
+            select.innerHTML = allEmployees.map(e => `<option value="${e.id}">${e.full_name} (${e.emp_code})</option>`).join('');
             loadEmployeeLeaveBalance();
+        }
+
+        function calculateEmployeeTier(emp) {
+            const today = new Date();
+            let age = 0;
+            if (emp.birth_date) {
+                const bDate = new Date(emp.birth_date);
+                age = today.getFullYear() - bDate.getFullYear();
+                const m = today.getMonth() - bDate.getMonth();
+                if (m < 0 || (m === 0 && today.getDate() < bDate.getDate())) age--;
+            }
+
+            let serviceYears = 0;
+            if (emp.hire_date) {
+                const hDate = new Date(emp.hire_date);
+                serviceYears = (today - hDate) / (1000 * 60 * 60 * 24 * 365.25);
+            }
+
+            const isSenior = (age >= 50 || serviceYears >= 10);
+            const monthlyRate = isSenior ? 9.75 : 7.75;
+            return { age, serviceYears: serviceYears.toFixed(1), isSenior, monthlyRate };
         }
 
         async function loadEmployeeLeaveBalance() {
             const empId = document.getElementById('leave_emp').value;
-            if(!empId) return;
+            if (!empId) return;
+
+            const emp = allEmployees.find(e => e.id == empId);
+            if (!emp) return;
+
+            const tier = calculateEmployeeTier(emp);
+            document.getElementById('tier_desc').innerText = `${tier.monthlyRate} يوم/شهر (${tier.isSenior ? 'أكثر من 10 سنوات خدمة أو تخطى الخمسين' : 'أقل من 10 سنوات خدمة'})`;
+
             const y = new Date().getFullYear();
-            const { data: b } = await client.from('employee_leave_balances').select('*').eq('employee_id', empId).eq('year', y).single();
-            const ent = b ? b.annual_entitlement : 28;
-            const usd = b ? b.used_annual : 0;
-            document.getElementById('bal_entitled').innerText = ent;
-            document.getElementById('bal_used').innerText = usd;
-            document.getElementById('bal_remaining').innerText = ent - usd;
+            const { data: b } = await client.from('employee_leave_balances').select('*').eq('employee_id', empId).eq('year', y).maybeSingle();
+
+            const opening = b ? parseFloat(b.opening_balance || 0) : 0;
+            document.getElementById('opening_balance_input').value = opening;
+
+            const today = new Date();
+            const currentMonth = today.getMonth() + 1;
+            let accruedMonths = 0;
+            if (currentMonth >= 9) {
+                accruedMonths = (currentMonth - 9) + 1;
+            }
+            const accruedNew = accruedMonths * tier.monthlyRate;
+
+            const { data: empLeaves } = await client.from('leaves').select('*').eq('employee_id', empId).neq('leave_type', 'SICK');
+            let used = 0;
+            if (empLeaves && empLeaves.length > 0) {
+                empLeaves.forEach(l => { used += parseFloat(l.days_count || 0); });
+            }
+
+            const totalEntitled = opening + accruedNew;
+            const remaining = totalEntitled - used;
+
+            document.getElementById('bal_opening').innerText = opening.toFixed(2);
+            document.getElementById('bal_accrued').innerText = accruedNew.toFixed(2);
+            document.getElementById('bal_total_entitled').innerText = totalEntitled.toFixed(2);
+            document.getElementById('bal_used').innerText = used.toFixed(2);
+            document.getElementById('bal_remaining').innerText = remaining.toFixed(2);
+        }
+
+        async function updateOpeningBalance() {
+            const empId = document.getElementById('leave_emp').value;
+            const openingVal = parseFloat(document.getElementById('opening_balance_input').value) || 0;
+            const y = new Date().getFullYear();
+
+            const { error } = await client.from('employee_leave_balances').upsert([{
+                employee_id: empId,
+                year: y,
+                opening_balance: openingVal,
+                annual_entitlement: 28
+            }], { onConflict: 'employee_id,year' });
+
+            if (error) {
+                alert('خطأ أثناء حفظ الرصيد الافتتاحي: ' + error.message);
+            } else {
+                alert('تم تثبيت الرصيد الافتتاحي بنجاح!');
+                loadEmployeeLeaveBalance();
+            }
         }
 
         async function saveLeave(e) {
@@ -1289,69 +740,221 @@
             const en = new Date(document.getElementById('leave_end').value);
             const days = Math.ceil(Math.abs(en - s) / (1000 * 60 * 60 * 24)) + 1;
             const type = document.getElementById('leave_type').value;
-            const y = new Date().getFullYear();
 
-            await client.from('leaves').insert([{ employee_id: empId, leave_type: type, start_date: document.getElementById('leave_start').value, end_date: document.getElementById('leave_end').value, days_count: days, is_approved: true }]);
-            if(type === 'ANNUAL') {
-                const { data: b } = await client.from('employee_leave_balances').select('*').eq('employee_id', empId).eq('year', y).single();
-                await client.from('employee_leave_balances').upsert([{ employee_id: empId, year: y, annual_entitlement: 28, used_annual: (b ? b.used_annual : 0) + days }], { onConflict: 'employee_id,year' });
+            const { error } = await client.from('leaves').insert([{
+                employee_id: empId,
+                leave_type: type,
+                start_date: document.getElementById('leave_start').value,
+                end_date: document.getElementById('leave_end').value,
+                days_count: days,
+                is_approved: true
+            }]);
+
+            if (error) {
+                alert('خطأ أثناء تسجيل الإجازة: ' + error.message);
+            } else {
+                alert(`تم تسجيل إجازة (${days} يوماً شاملة الجمع) بنجاح!`);
+                loadEmployeeLeaveBalance();
             }
-            alert(`تم تسجيل إجازة ${days} يوماً (شاملاً الجمع) بنجاح!`); loadEmployeeLeaveBalance();
         }
 
-        function adjustPenaltyInputs() {
-            const t = document.getElementById('pen_type').value;
-            document.getElementById('div_pen_days').classList.toggle('hidden', t !== 'DAYS');
-            document.getElementById('div_pen_hours').classList.toggle('hidden', t !== 'HOURS');
+        function printLeaveApplication() {
+            const empId = document.getElementById('leave_emp').value;
+            const emp = allEmployees.find(e => e.id == empId);
+            if (!emp) return alert('يرجى اختيار الموظف أولاً');
+
+            const sDate = document.getElementById('leave_start').value;
+            const eDate = document.getElementById('leave_end').value;
+            if (!sDate || !eDate) return alert('يرجى تحديد تاريخ بداية ونهاية الإجازة');
+
+            const s = new Date(sDate);
+            const en = new Date(eDate);
+            const days = Math.ceil(Math.abs(en - s) / (1000 * 60 * 60 * 24)) + 1;
+
+            const typeSelect = document.getElementById('leave_type');
+            const typeText = typeSelect.options[typeSelect.selectedIndex].text;
+
+            document.getElementById('la_print_date').innerText = new Date().toLocaleDateString('ar-EG');
+            document.getElementById('la_emp_name').innerText = emp.full_name;
+            document.getElementById('la_emp_code').innerText = emp.emp_code;
+            document.getElementById('la_job_title').innerText = emp.job_title;
+            document.getElementById('la_dept').innerText = 'القطاع الطبي / الإداري';
+            
+            document.getElementById('la_leave_type').innerText = typeText;
+            document.getElementById('la_from').innerText = sDate;
+            document.getElementById('la_to').innerText = eDate;
+            document.getElementById('la_days').innerText = `${days} يوماً (شاملة الراحات وأيام الجمع)`;
+
+            const currentRem = parseFloat(document.getElementById('bal_remaining').innerText) || 0;
+            document.getElementById('la_bal_before').innerText = currentRem.toFixed(2);
+            document.getElementById('la_bal_after').innerText = (typeSelect.value === 'SICK' ? currentRem : (currentRem - days)).toFixed(2);
+
+            const printArea = document.getElementById('leavePrintArea');
+            printArea.classList.remove('hidden');
+            window.print();
+            printArea.classList.add('hidden');
+        }
+
+        /* ===== دوال السلف والجزاءات ومسير الرواتب ===== */
+        async function loadAdvancesTab() {
+            const s = document.getElementById('adv_emp');
+            s.innerHTML = allEmployees.map(e => `<option value="${e.id}">${e.full_name}</option>`).join('');
+        }
+
+        async function saveAdvance(e) {
+            e.preventDefault();
+            const adv = {
+                employee_id: document.getElementById('adv_emp').value,
+                total_amount: parseFloat(document.getElementById('adv_amount').value),
+                monthly_installment: parseFloat(document.getElementById('adv_installment').value),
+                start_month: document.getElementById('adv_start_month').value,
+                status: 'ACTIVE'
+            };
+            const { error } = await client.from('advances').insert([adv]);
+            if (error) alert(error.message);
+            else {
+                alert('تم صرف وتسجيل السلفة بنجاح');
+                document.getElementById('advanceForm').reset();
+            }
         }
 
         async function loadPenaltiesTab() {
-            const select = document.getElementById('pen_emp');
-            select.innerHTML = allEmployees.map(e => `<option value="${e.id}">${e.full_name}</option>`).join('');
-            const { data: pens } = await client.from('penalties').select('*, employees(full_name)').order('id', { ascending: false });
-            const tbody = document.getElementById('penTableBody');
-            tbody.innerHTML = (pens || []).map(p => `
-                <tr class="border-b hover:bg-gray-50 text-xs">
-                    <td class="p-3 font-bold">${p.employees ? p.employees.full_name : '-'}</td>
-                    <td class="p-3 font-semibold">${p.penalty_type === 'WARNING' ? 'إنذار' : (p.penalty_type === 'HOURS' ? 'تأخير ساعات' : 'خصم أيام')}</td>
-                    <td class="p-3">${p.violation_date}</td>
-                    <td class="p-3">${p.violation_reason}</td>
-                    <td class="p-3 font-bold text-red-600">${p.penalty_type === 'WARNING' ? '0' : (p.penalty_type === 'HOURS' ? p.delay_hours + ' س' : p.penalty_days + ' ي')}</td>
-                    <td class="p-3 font-mono">${p.deducted_in_month}</td>
-                    <td class="p-3">${p.investigation_ref || '-'}</td>
-                </tr>
-            `).join('');
+            const s = document.getElementById('pen_emp');
+            s.innerHTML = allEmployees.map(e => `<option value="${e.id}">${e.full_name}</option>`).join('');
         }
 
         async function savePenalty(e) {
             e.preventDefault();
-            const t = document.getElementById('pen_type').value;
-            const empId = document.getElementById('pen_emp').value;
-            const vDate = document.getElementById('violation_date').value;
-            const m = document.getElementById('pen_month').value;
-            const ref = document.getElementById('investigation_ref').value;
-            const reason = document.getElementById('violation_reason').value;
-
-            if(t === 'WARNING') {
-                await client.from('penalties').insert([{ employee_id: empId, penalty_type: 'WARNING', violation_date: vDate, violation_reason: reason, penalty_days: 0, delay_hours: 0, investigation_ref: ref, deducted_in_month: m }]);
-            } else if(t === 'HOURS') {
-                await client.from('penalties').insert([{ employee_id: empId, penalty_type: 'HOURS', violation_date: vDate, violation_reason: reason, penalty_days: 0, delay_hours: parseFloat(document.getElementById('delay_hours').value) || 0, investigation_ref: ref, deducted_in_month: m }]);
-            } else {
-                const days = parseFloat(document.getElementById('penalty_days').value) || 0;
-                await client.from('penalties').insert([{ employee_id: empId, penalty_type: 'DAYS', violation_date: vDate, violation_reason: reason, penalty_days: days, investigation_ref: ref, deducted_in_month: m }]);
+            const pType = document.getElementById('pen_type').value;
+            const pAmount = parseFloat(document.getElementById('pen_amount').value) || 0;
+            const pen = {
+                employee_id: document.getElementById('pen_emp').value,
+                penalty_type: pType,
+                penalty_days: pType === 'DAYS' ? pAmount : 0,
+                delay_hours: pType === 'HOURS' ? pAmount : 0,
+                violation_date: document.getElementById('pen_date').value,
+                violation_reason: document.getElementById('pen_reason').value,
+                investigation_ref: document.getElementById('pen_ref').value,
+                deducted_in_month: document.getElementById('pen_month').value
+            };
+            const { error } = await client.from('penalties').insert([pen]);
+            if (error) alert(error.message);
+            else {
+                alert('تم تسجيل واعتماد الجزاء بنجاح');
+                document.getElementById('penaltyForm').reset();
             }
-            alert('تم تثبيت الإجراء بالسجلات!'); loadPenaltiesTab();
         }
 
-        function initReportsTab() {
-            document.getElementById('repGeneratedDate').innerText = new Date().toLocaleDateString('ar-EG');
-            toggleReportFilters();
+        async function calculateMonthlyPayroll() {
+            const m = document.getElementById('payroll_month_select').value;
+            const tbody = document.getElementById('payrollTableBody');
+            tbody.innerHTML = `<tr><td colspan="11" class="text-center p-4 text-teal-800">جاري احتساب مسير الرواتب المعتمد لشهر ${m}...</td></tr>`;
+
+            const { data: advs } = await client.from('advances').select('*').eq('status', 'ACTIVE');
+            const { data: pens } = await client.from('penalties').select('*').eq('deducted_in_month', m);
+
+            const payrollRows = allEmployees.map(e => {
+                const basic = parseFloat(e.basic_salary) || 0;
+                const allowances = parseFloat(e.gross_salary || e.basic_salary) - basic;
+                const bonuses = 0;
+
+                const si = (basic * 0.10).toFixed(2);
+                const uhis = (basic * 0.01).toFixed(2);
+
+                let advDeduction = 0;
+                if (advs) {
+                    const empAdvs = advs.filter(a => a.employee_id == e.id);
+                    empAdvs.forEach(a => advDeduction += parseFloat(a.monthly_installment));
+                }
+
+                let penDeduction = 0;
+                if (pens) {
+                    const empPens = pens.filter(p => p.employee_id == e.id);
+                    empPens.forEach(p => {
+                        const dayRate = basic / 30;
+                        if (p.penalty_type === 'DAYS') penDeduction += (parseFloat(p.penalty_days) * dayRate);
+                        if (p.penalty_type === 'HOURS') penDeduction += (parseFloat(p.delay_hours) * (dayRate / 8));
+                    });
+                }
+
+                const net = (basic + allowances + bonuses - si - uhis - advDeduction - penDeduction).toFixed(2);
+
+                return {
+                    emp_code: e.emp_code,
+                    full_name: e.full_name,
+                    job_title: e.job_title,
+                    basic: basic.toFixed(2),
+                    allowances: allowances.toFixed(2),
+                    bonuses: bonuses.toFixed(2),
+                    si,
+                    uhis,
+                    advDeduction: advDeduction.toFixed(2),
+                    penDeduction: penDeduction.toFixed(2),
+                    net
+                };
+            });
+
+            tbody.innerHTML = payrollRows.map(r => `
+                <tr class="border-b hover:bg-gray-50 text-xs">
+                    <td class="p-2 font-mono font-bold">${r.emp_code}</td>
+                    <td class="p-2 font-bold text-gray-900">${r.full_name}</td>
+                    <td class="p-2 font-mono">${r.basic}</td>
+                    <td class="p-2 font-mono text-blue-700">${r.allowances}</td>
+                    <td class="p-2 font-mono text-amber-700">${r.bonuses}</td>
+                    <td class="p-2 font-mono text-red-600">${r.si}</td>
+                    <td class="p-2 font-mono text-red-600">${r.uhis}</td>
+                    <td class="p-2 font-mono text-red-600">${r.advDeduction}</td>
+                    <td class="p-2 font-mono text-red-600">${r.penDeduction}</td>
+                    <td class="p-2 font-mono font-black text-teal-900 bg-teal-50">${r.net}</td>
+                    <td class="p-2 text-center">
+                        <button onclick='printPayslip(${JSON.stringify(r)}, "${m}")' class="bg-gray-800 text-white px-2 py-1 rounded text-[11px] hover:bg-gray-900">طباعة</button>
+                    </td>
+                </tr>
+            `).join('');
         }
 
+        function printPayslip(r, m) {
+            document.getElementById('ps_month').innerText = `استحقاق: ${m}`;
+            document.getElementById('ps_name').innerText = r.full_name;
+            document.getElementById('ps_code').innerText = r.emp_code;
+            document.getElementById('ps_job').innerText = r.job_title;
+            document.getElementById('ps_basic').innerText = r.basic;
+            document.getElementById('ps_allowances').innerText = r.allowances;
+            document.getElementById('ps_bonuses').innerText = r.bonuses;
+            document.getElementById('ps_gross').innerText = (parseFloat(r.basic) + parseFloat(r.allowances) + parseFloat(r.bonuses)).toFixed(2);
+            document.getElementById('ps_si').innerText = r.si;
+            document.getElementById('ps_uhis').innerText = r.uhis;
+            document.getElementById('ps_adv').innerText = r.advDeduction;
+            document.getElementById('ps_pen').innerText = r.penDeduction;
+            document.getElementById('ps_deductions').innerText = (parseFloat(r.si) + parseFloat(r.uhis) + parseFloat(r.advDeduction) + parseFloat(r.penDeduction)).toFixed(2);
+            document.getElementById('ps_net').innerText = r.net;
+
+            const area = document.getElementById('payslipPrintArea');
+            area.classList.remove('hidden');
+            window.print();
+            area.classList.add('hidden');
+        }
+
+        /* ===== دوال مركز التقارير الشاملة ===== */
         function toggleReportFilters() {
-            const t = document.getElementById('report_type').value;
-            document.getElementById('filter_month_div').classList.toggle('hidden', t === 'PENALTIES_PERIOD');
-            document.getElementById('filter_dates_div').classList.toggle('hidden', t !== 'PENALTIES_PERIOD');
+            const type = document.getElementById('report_type').value;
+            const fFrom = document.getElementById('filter_from');
+            const fTo = document.getElementById('filter_to');
+            const fMonth = document.getElementById('filter_month');
+
+            if (type === 'PAYROLL_MASTER') {
+                fFrom.classList.add('hidden');
+                fTo.classList.add('hidden');
+                fMonth.classList.remove('hidden');
+            } else if (type === 'PENALTIES_PERIOD') {
+                fFrom.classList.remove('hidden');
+                fTo.classList.remove('hidden');
+                fMonth.classList.add('hidden');
+            } else {
+                fFrom.classList.add('hidden');
+                fTo.classList.add('hidden');
+                fMonth.classList.add('hidden');
+            }
         }
 
         async function generateReport() {
@@ -1385,16 +988,8 @@
                 if (toDate) query = query.lte('violation_date', toDate);
 
                 const { data: pens, error } = await query;
-
-                if (error) {
-                    tbody.innerHTML = `<tr><td colspan="9" class="text-center p-4 text-red-600">خطأ في جلب البيانات: ${error.message}</td></tr>`;
-                    return;
-                }
-
-                if (!pens || pens.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="9" class="text-center p-4 text-gray-500">لا توجد جزاءات أو إنذارات مسجلة خلال هذه الفترة</td></tr>`;
-                    return;
-                }
+                if (error) return tbody.innerHTML = `<tr><td colspan="9" class="text-center p-4 text-red-600">خطأ: ${error.message}</td></tr>`;
+                if (!pens || pens.length === 0) return tbody.innerHTML = `<tr><td colspan="9" class="text-center p-4 text-gray-500">لا توجد جزاءات أو إنذارات مسجلة خلال هذه الفترة</td></tr>`;
 
                 tbody.innerHTML = pens.map(p => {
                     const empCode = p.employees ? p.employees.emp_code : '-';
@@ -1428,146 +1023,69 @@
 
             } else if (type === 'PAYROLL_MASTER') {
                 const m = document.getElementById('rep_month').value;
-                title.innerText = `مسير الرواتب المعتمد لشهر ${m} (استحقاق 28)`;
-                thead.innerHTML = `<tr><th class="p-2 border">الكود</th><th class="p-2 border">الاسم</th><th class="p-2 border">الوظيفة</th><th class="p-2 border">الأساسي</th><th class="p-2 border">البدلات التعاقدية</th><th class="p-2 border">المكافآت</th><th class="p-2 border">تأمينات (10%)</th><th class="p-2 border">صحي (1%)</th><th class="p-2 border">الخصومات والسلف</th><th class="p-2 border bg-teal-50">الصافي</th></tr>`;
-                const { data: rows } = await client.from('monthly_payrolls').select('*, employees(emp_code, full_name, job_title)').eq('payroll_month', m);
-                if(!rows || rows.length === 0) return tbody.innerHTML = `<tr><td colspan="10" class="text-center p-4 text-gray-500">لا يوجد كشف رواتب محفوظ لهذا الشهر</td></tr>`;
-                tbody.innerHTML = rows.map(r => `
-                    <tr class="border-b text-xs">
-                        <td class="p-2 border font-mono">${r.employees ? r.employees.emp_code : '-'}</td>
-                        <td class="p-2 border font-bold">${r.employees ? r.employees.full_name : '-'}</td>
-                        <td class="p-2 border">${r.employees ? r.employees.job_title : '-'}</td>
-                        <td class="p-2 border">${r.basic_salary}</td>
-                        <td class="p-2 border text-blue-700">${(r.allowances - (r.bonuses || 0)).toFixed(2)}</td>
-                        <td class="p-2 border text-amber-700 font-bold">${r.bonuses || 0}</td>
-                        <td class="p-2 border text-red-600">${r.social_insurance_employee}</td>
-                        <td class="p-2 border text-red-600">${r.uhis_employee}</td>
-                        <td class="p-2 border text-red-600">${(r.penalties_deduction + r.advances_deduction + r.housing_deduction + r.meal_deduction + r.other_services_deduction + r.fellowship_fund_deduction).toFixed(2)}</td>
-                        <td class="p-2 border font-bold text-teal-800 bg-teal-50">${r.net_salary}</td>
-                    </tr>
-                `).join('');
-
-            } else if (type === 'PERMANENT_STAFF') {
-                title.innerText = 'دليل العاملين الدائمين وبيانات العقود والبدلات الثابتة';
-                thead.innerHTML = `<tr><th class="p-2 border">الكود</th><th class="p-2 border">الاسم</th><th class="p-2 border">الوظيفة</th><th class="p-2 border">المحمول</th><th class="p-2 border">المؤهل</th><th class="p-2 border">الأساسي</th><th class="p-2 border">الشامل</th><th class="p-2 border">إجمالي البدلات الثابتة</th></tr>`;
+                title.innerText = `مسير الرواتب المعتمد لشهر ${m} (استحقاق يوم 28)`;
+                thead.innerHTML = `<tr><th class="p-2 border">الكود</th><th class="p-2 border">الاسم</th><th class="p-2 border">الوظيفة</th><th class="p-2 border">الأساسي</th><th class="p-2 border">البدلات</th><th class="p-2 border">تأمينات</th><th class="p-2 border">صحي</th><th class="p-2 border">صافي المرتب</th></tr>`;
                 const perms = allEmployees.filter(e => e.emp_type === 'PERMANENT');
-                if(!perms || perms.length === 0) return tbody.innerHTML = `<tr><td colspan="8" class="text-center p-4 text-gray-500">لا يوجد موظفون دائمون مسجلون</td></tr>`;
                 tbody.innerHTML = perms.map(e => `
                     <tr class="border-b text-xs">
                         <td class="p-2 border font-mono">${e.emp_code}</td>
                         <td class="p-2 border font-bold">${e.full_name}</td>
                         <td class="p-2 border">${e.job_title}</td>
-                        <td class="p-2 border">${e.phone || '-'}</td>
-                        <td class="p-2 border">${e.education_qualification || '-'}</td>
-                        <td class="p-2 border">${parseFloat(e.basic_salary).toFixed(2)}</td>
-                        <td class="p-2 border text-amber-800 font-bold">${parseFloat(e.gross_salary || e.basic_salary).toFixed(2)}</td>
-                        <td class="p-2 border text-blue-700 font-bold">${(parseFloat(e.fixed_housing_allowance || 0) + parseFloat(e.fixed_transport_allowance || 0) + parseFloat(e.fixed_supervision_allowance || 0) + parseFloat(e.fixed_food_allowance || 0) + parseFloat(e.fixed_overtime_allowance || 0)).toFixed(2)}</td>
+                        <td class="p-2 border font-mono">${parseFloat(e.basic_salary).toFixed(2)}</td>
+                        <td class="p-2 border font-mono text-blue-700">${(parseFloat(e.gross_salary || e.basic_salary) - parseFloat(e.basic_salary)).toFixed(2)}</td>
+                        <td class="p-2 border font-mono text-red-600">${(parseFloat(e.basic_salary) * 0.10).toFixed(2)}</td>
+                        <td class="p-2 border font-mono text-red-600">${(parseFloat(e.basic_salary) * 0.01).toFixed(2)}</td>
+                        <td class="p-2 border font-mono font-bold text-teal-900 bg-teal-50">${(parseFloat(e.gross_salary || e.basic_salary) - (parseFloat(e.basic_salary)*0.11)).toFixed(2)}</td>
+                    </tr>
+                `).join('');
+
+            } else if (type === 'PERMANENT_STAFF') {
+                title.innerText = 'دليل العاملين الدائمين وبيانات العقود والبدلات الثابتة';
+                thead.innerHTML = `<tr><th class="p-2 border">الكود</th><th class="p-2 border">الاسم</th><th class="p-2 border">الوظيفة</th><th class="p-2 border">تاريخ التعيين</th><th class="p-2 border">الأساسي</th><th class="p-2 border">الشامل</th></tr>`;
+                const perms = allEmployees.filter(e => e.emp_type === 'PERMANENT');
+                tbody.innerHTML = perms.map(e => `
+                    <tr class="border-b text-xs">
+                        <td class="p-2 border font-mono">${e.emp_code}</td>
+                        <td class="p-2 border font-bold">${e.full_name}</td>
+                        <td class="p-2 border">${e.job_title}</td>
+                        <td class="p-2 border font-mono">${e.hire_date || '-'}</td>
+                        <td class="p-2 border font-mono">${parseFloat(e.basic_salary).toFixed(2)}</td>
+                        <td class="p-2 border font-mono font-bold text-teal-800">${parseFloat(e.gross_salary || e.basic_salary).toFixed(2)}</td>
                     </tr>
                 `).join('');
 
             } else if (type === 'TEMPORARY_STAFF') {
                 title.innerText = 'سجل العمالة المؤقتة والأطباء الزائرين';
-                thead.innerHTML = `<tr><th class="p-2 border">الكود</th><th class="p-2 border">الاسم</th><th class="p-2 border">النوع</th><th class="p-2 border">الوظيفة</th><th class="p-2 border">المحمول</th><th class="p-2 border">فئة اليومية / الشفت</th></tr>`;
+                thead.innerHTML = `<tr><th class="p-2 border">الكود</th><th class="p-2 border">الاسم</th><th class="p-2 border">النوع</th><th class="p-2 border">الوظيفة</th><th class="p-2 border">فئة اليومية / الشفت</th></tr>`;
                 const temps = allEmployees.filter(e => e.emp_type !== 'PERMANENT');
-                if(!temps || temps.length === 0) return tbody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-gray-500">لا يوجد عمالة مؤقتة مسجلة</td></tr>`;
                 tbody.innerHTML = temps.map(e => `
                     <tr class="border-b text-xs">
                         <td class="p-2 border font-mono">${e.emp_code}</td>
                         <td class="p-2 border font-bold">${e.full_name}</td>
-                        <td class="p-2 border">${e.emp_type === 'VISITING_DOCTOR' ? 'طبيب زائر' : 'مؤقت / يوميات'}</td>
+                        <td class="p-2 border">${e.emp_type === 'VISITING_DOCTOR' ? 'طبيب زائر' : 'مؤقت / نوبتجيات'}</td>
                         <td class="p-2 border">${e.job_title}</td>
-                        <td class="p-2 border">${e.phone || '-'}</td>
-                        <td class="p-2 border font-bold text-emerald-700">${parseFloat(e.basic_salary).toFixed(2)} ج.م</td>
+                        <td class="p-2 border font-mono font-bold text-emerald-700">${parseFloat(e.basic_salary).toFixed(2)} ج.م</td>
                     </tr>
                 `).join('');
 
             } else if (type === 'LEAVES_SUMMARY') {
                 title.innerText = 'تقرير أرصدة الإجازات السنوية للعاملين';
-                thead.innerHTML = `<tr><th class="p-2 border">الكود</th><th class="p-2 border">اسم الموظف</th><th class="p-2 border">الوظيفة</th><th class="p-2 border">الرصيد المستحق</th><th class="p-2 border">المستهلك</th><th class="p-2 border">المتبقي</th></tr>`;
-                const y = new Date().getFullYear();
-                const { data: balances } = await client.from('employee_leave_balances').select('*, employees(emp_code, full_name, job_title)').eq('year', y);
-                if(!balances || balances.length === 0) return tbody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-gray-500">لا توجد سجلات أرصدة إجازات لهذا العام</td></tr>`;
-                tbody.innerHTML = balances.map(b => `
-                    <tr class="border-b text-xs">
-                        <td class="p-2 border font-mono">${b.employees ? b.employees.emp_code : '-'}</td>
-                        <td class="p-2 border font-bold">${b.employees ? b.employees.full_name : '-'}</td>
-                        <td class="p-2 border">${b.employees ? b.employees.job_title : '-'}</td>
-                        <td class="p-2 border text-teal-800 font-bold">${b.annual_entitlement} يوم</td>
-                        <td class="p-2 border text-red-600 font-bold">${b.used_annual} يوم</td>
-                        <td class="p-2 border text-emerald-700 font-bold">${b.annual_entitlement - b.used_annual} يوم</td>
-                    </tr>
-                `).join('');
+                thead.innerHTML = `<tr><th class="p-2 border">الكود</th><th class="p-2 border">اسم الموظف</th><th class="p-2 border">الوظيفة</th><th class="p-2 border">المعدل الشهري</th><th class="p-2 border">الافتتاحي السابق</th><th class="p-2 border">المتبقي الحالي</th></tr>`;
+                const perms = allEmployees.filter(e => e.emp_type === 'PERMANENT');
+                tbody.innerHTML = perms.map(e => {
+                    const tier = calculateEmployeeTier(e);
+                    return `
+                        <tr class="border-b text-xs">
+                            <td class="p-2 border font-mono">${e.emp_code}</td>
+                            <td class="p-2 border font-bold">${e.full_name}</td>
+                            <td class="p-2 border">${e.job_title}</td>
+                            <td class="p-2 border font-bold text-teal-800">${tier.monthlyRate} يوم/شهر</td>
+                            <td class="p-2 border font-mono text-amber-800">-</td>
+                            <td class="p-2 border font-mono font-bold text-emerald-700">متاح للعرض في تبويب الإجازات</td>
+                        </tr>
+                    `;
+                }).join('');
             }
-        }
-        async function openDocsModal(empId, empName) {
-            currentEmpId = empId;
-            document.getElementById('modalEmpName').innerText = `مسوغات تعيين: ${empName}`;
-            document.getElementById('docsModal').classList.remove('hidden');
-            const { data: existingDocs } = await client.from('employee_documents').select('*').eq('employee_id', empId);
-            const container = document.getElementById('docsList');
-            container.innerHTML = '';
-            REQUIRED_DOCS.forEach(docTitle => {
-                const found = existingDocs ? existingDocs.find(d => d.doc_name === docTitle) : null;
-                container.innerHTML += `
-                    <div class="border p-3 rounded-lg flex flex-col md:flex-row justify-between items-center gap-3 bg-gray-50" data-doc-title="${docTitle}">
-                        <span class="font-semibold text-sm w-1/3">${docTitle}</span>
-                        <div class="flex items-center gap-4 w-2/3 justify-end">
-                            <label class="flex items-center gap-1 text-xs"><input type="checkbox" class="doc-received" ${found && found.is_received ? 'checked' : ''}> تم الاستلام</label>
-                            <label class="flex items-center gap-1 text-xs"><input type="checkbox" class="doc-original" ${found && found.is_original ? 'checked' : ''}> أصل</label>
-                            <div class="flex items-center gap-1 text-xs"><span>صلاحية:</span><input type="date" class="doc-expiry border rounded px-1 text-xs" value="${(found && found.expiry_date) ? found.expiry_date : ''}"></div>
-                        </div>
-                    </div>
-                `;
-            });
-        }
-
-        function closeDocsModal() { document.getElementById('docsModal').classList.add('hidden'); }
-        async function saveDocumentsState() {
-            if(!currentEmpId) return;
-            const rows = document.querySelectorAll('#docsList > div');
-            const records = [];
-            rows.forEach(r => {
-                records.push({
-                    employee_id: currentEmpId,
-                    doc_name: r.getAttribute('data-doc-title'),
-                    is_received: r.querySelector('.doc-received').checked,
-                    is_original: r.querySelector('.doc-original').checked,
-                    expiry_date: r.querySelector('.doc-expiry').value || null
-                });
-            });
-            await client.from('employee_documents').delete().eq('employee_id', currentEmpId);
-            await client.from('employee_documents').insert(records);
-            alert('تم حفظ مسوغات التعيين بالسحابة!');
-            closeDocsModal();
-        }
-
-        async function loadTemporaryEmployees() {
-            const emps = allEmployees.filter(e => e.emp_type !== 'PERMANENT');
-            const select = document.getElementById('settle_emp');
-            select.innerHTML = emps.map(e => `<option value="${e.id}">${e.full_name}</option>`).join('');
-            if(emps.length > 0) { document.getElementById('unit_rate').value = emps[0].basic_salary || 0; calculateTotal(); }
-        }
-
-        function calculateTotal() {
-            const c = parseFloat(document.getElementById('shifts_count').value) || 0;
-            const r = parseFloat(document.getElementById('unit_rate').value) || 0;
-            const t = parseFloat(document.getElementById('withholding_tax').value) || 0;
-            document.getElementById('net_amount_display').innerText = ((c * r) - t).toFixed(2) + ' ج.م';
-        }
-
-        async function processSettlement(e) {
-            e.preventDefault();
-            const c = parseFloat(document.getElementById('shifts_count').value) || 0;
-            const r = parseFloat(document.getElementById('unit_rate').value) || 0;
-            const t = parseFloat(document.getElementById('withholding_tax').value) || 0;
-            await client.from('temporary_settlements').insert([{
-                employee_id: document.getElementById('settle_emp').value,
-                start_shift: document.getElementById('start_shift').value,
-                end_shift: document.getElementById('end_shift').value,
-                shifts_count: c, unit_rate: r, total_amount: (c * r), withholding_tax: t,
-                net_payable: (c * r) - t, receipt_no: 'REC-' + Date.now().toString().slice(-6)
-            }]);
-            alert('تم تسجيل إذن الصرف بنجاح!'); window.print();
         }
     </script>
 </body>
