@@ -10,11 +10,11 @@
     <style>
         body { font-family: 'Cairo', sans-serif; }
         @media print {
-            header, nav, .no-print, #loginOverlay, #section-employees, #section-advances, #section-leaves, #section-penalties, #section-settlement, #section-users { display: none !important; }
+            header, nav, .no-print, #loginOverlay, #section-employees, #section-advances, #section-leaves > div:first-child, #section-penalties, #section-settlement, #section-users, #section-reports { display: none !important; }
             body { background: white !important; color: black !important; padding: 0 !important; }
             main { max-width: 100% !important; padding: 0 !important; margin: 0 !important; }
-            .print-area { display: block !important; }
-            #payslipPrintArea, #leavePrintArea { display: block !important; border: 2px solid #111827 !important; }
+            .print-area { display: block !important; visibility: visible !important; }
+            #payslipPrintArea, #leavePrintArea { display: block !important; visibility: visible !important; border: 2px solid #111827 !important; margin: 0 auto !important; }
         }
     </style>
 </head>
@@ -1010,7 +1010,7 @@
             }
         }
 
-        function printLeaveRequest() {
+       function printLeaveRequest() {
             const empId = document.getElementById('leave_emp').value;
             const emp = allEmployees.find(e => e.id == empId);
             if (!emp) return alert('يرجى اختيار الموظف أولاً');
@@ -1041,8 +1041,11 @@
 
             const printArea = document.getElementById('leavePrintArea');
             printArea.classList.remove('hidden');
-            window.print();
-            printArea.classList.add('hidden');
+
+            setTimeout(() => {
+                window.print();
+                printArea.classList.add('hidden');
+            }, 200);
         }
 
         /* ------------------ إدارة السلف ------------------ */
