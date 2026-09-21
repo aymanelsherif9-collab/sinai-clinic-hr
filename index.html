@@ -10,11 +10,11 @@
     <style>
         body { font-family: 'Cairo', sans-serif; }
         @media print {
-            header, nav, .no-print, #loginOverlay, #section-employees, #section-advances, #section-leaves > div:first-child, #section-penalties, #section-settlement, #section-users, #section-reports { display: none !important; }
+            header, nav, .no-print, #loginOverlay, #section-employees, #section-advances, #section-leaves, #section-penalties, #section-settlement, #section-users { display: none !important; }
             body { background: white !important; color: black !important; padding: 0 !important; }
             main { max-width: 100% !important; padding: 0 !important; margin: 0 !important; }
-            .print-area { display: block !important; visibility: visible !important; }
-            #payslipPrintArea, #leavePrintArea { display: block !important; visibility: visible !important; border: 2px solid #111827 !important; margin: 0 auto !important; }
+            .print-area { display: block !important; }
+            #payslipPrintArea { display: block !important; border: 2px solid #111827 !important; }
         }
     </style>
 </head>
@@ -87,7 +87,7 @@
 
     <main class="max-w-7xl mx-auto p-6">
 
-        <!-- القسم 1: سجل العاملين (الواجهة الأصلية بالكامل) -->
+        <!-- القسم 1: سجل العاملين -->
         <section id="section-employees" class="block no-print">
             <div id="deptControlBox" class="bg-white p-4 rounded-xl shadow mb-6 flex flex-wrap justify-between items-center gap-4">
                 <div>
@@ -179,13 +179,13 @@
             </div>
         </section>
 
-        <!-- القسم 3: الإجازات والراحات (المنظومة التراكمية المدمجة) -->
+        <!-- القسم 2: الإجازات والراحات (المنظومة المحسنة والمحمية من التكرار) -->
         <section id="section-leaves" class="hidden no-print">
             <div class="bg-white p-6 rounded-xl shadow mb-8">
                 <div class="flex flex-wrap justify-between items-center border-b pb-3 mb-4 gap-4">
                     <div>
                         <h2 class="text-xl font-bold text-teal-900">تسجيل الإجازات والراحات المجمعة (مناطق نائية - جنوب سيناء)</h2>
-                        <p class="text-xs text-gray-500 mt-1">احتساب استحقاق تراكمي (7.75 أو 9.75 يوم/شهر) مدمجاً مع الرصيد السابق</p>
+                        <p class="text-xs text-gray-500 mt-1">احتساب استحقاق تراكمي مع رقابة صارمة تمنع تداخل وتكرار التواريخ</p>
                     </div>
                     <div id="tier_desc" class="text-xs bg-teal-50 text-teal-900 px-3 py-1.5 rounded-lg border border-teal-200 font-bold">
                         الشريحة: اختر الموظف لعرض الشريحة
@@ -247,60 +247,41 @@
                     </div>
 
                     <div class="flex justify-end gap-3 pt-2">
-                        <button type="button" onclick="printLeaveRequest()" class="bg-gray-800 text-white px-5 py-2.5 rounded-lg font-bold hover:bg-gray-900 transition flex items-center gap-2">
-                            <span>🖨️ طباعة إذن إجازة رسمي</span>
+                        <button type="button" onclick="printLeaveDirectWindow()" class="bg-gray-800 text-white px-5 py-2.5 rounded-lg font-bold hover:bg-gray-900 transition flex items-center gap-2">
+                            <span>🖨️ طباعة إذن إجازة رسمي (نافذة مباشرة)</span>
                         </button>
                         <button type="submit" id="saveLeaveBtn" class="bg-teal-700 text-white px-6 py-2.5 rounded-lg font-bold hover:bg-teal-800 transition">تسجيل الإجازة بالسجلات</button>
                     </div>
                 </form>
             </div>
 
-            <!-- نموذج إذن الإجازة الرسمي للطباعة -->
-            <div id="leavePrintArea" class="hidden print-area bg-white p-8 border-2 border-gray-900 rounded-lg max-w-2xl mx-auto my-4 text-right">
-                <div class="border-b-2 border-gray-900 pb-3 mb-4 flex justify-between items-center">
-                    <div>
-                        <h2 class="text-xl font-bold text-gray-900">مستشفى سينا كلينيك - شرم الشيخ</h2>
-                        <h3 class="text-sm font-semibold text-gray-700">إدارة الموارد البشرية والشؤون الإدارية</h3>
-                    </div>
-                    <div class="text-left text-xs font-mono">
-                        <p>التاريخ: <span id="lp_print_date"></span></p>
-                        <p>الرقم الإشاري: <span id="lp_ref_no"></span></p>
-                    </div>
+            <!-- جدول الرقابة على إجازات الموظف مع إمكانية الإلغاء/الحذف الفوري وإعادة الطباعة -->
+            <div class="bg-white p-6 rounded-xl shadow">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-base font-bold text-gray-700">سجل الإجازات المسجلة للموظف (للمراجعة، الحذف، والطباعة)</h3>
+                    <span class="text-xs text-gray-500">حذف أي إجازة يعيد رصيدها تلقائياً للموظف</span>
                 </div>
-
-                <div class="text-center my-4">
-                    <h1 class="text-lg font-black border-2 border-gray-900 inline-block px-6 py-1 rounded bg-gray-100">إذن وتصريح إجازة معتمد</h1>
-                </div>
-
-                <div class="grid grid-cols-2 gap-3 text-xs mb-4 border p-3 rounded bg-gray-50">
-                    <div><span class="font-bold">اسم الموظف:</span> <span id="lp_emp_name" class="font-bold text-sm"></span></div>
-                    <div><span class="font-bold">كود الموظف:</span> <span id="lp_emp_code" class="font-mono"></span></div>
-                    <div><span class="font-bold">الوظيفة:</span> <span id="lp_job_title"></span></div>
-                    <div><span class="font-bold">القسم / الإدارة:</span> <span id="lp_dept"></span></div>
-                </div>
-
-                <div class="border p-4 rounded mb-4 text-xs space-y-2">
-                    <p>نوع الإجازة المطلوبة: <span id="lp_type" class="font-bold text-sm"></span></p>
-                    <p>الفترة المصرح بها: من <span id="lp_start" class="font-bold"></span> إلى <span id="lp_end" class="font-bold"></span> (شاملاً أيام الراحات والجمع).</p>
-                    <p>إجمالي مدة الإجازة: <span id="lp_days" class="font-bold text-sm"></span> يوماً.</p>
-                    <p>القائم بالعمل خلال الإجازة (البديل): <span id="lp_substitute" class="font-bold"></span></p>
-                </div>
-
-                <div class="grid grid-cols-3 gap-2 text-center text-xs mb-6 bg-teal-50 p-2.5 rounded border border-teal-200">
-                    <div><span class="block text-gray-600">الرصيد التراكمي المستحق:</span><span id="lp_total_ent" class="font-bold text-sm"></span> يوم</div>
-                    <div><span class="block text-gray-600">المستهلك حتى تاريخه:</span><span id="lp_used" class="font-bold text-sm text-red-700"></span> يوم</div>
-                    <div><span class="block text-gray-600">الرصيد المتبقي المتاح:</span><span id="lp_rem" class="font-bold text-sm text-emerald-800"></span> يوم</div>
-                </div>
-
-                <div class="grid grid-cols-3 text-center text-xs font-bold pt-4 border-t-2 border-gray-900">
-                    <div><p class="mb-10">توقيع الموظف</p><p>............................</p></div>
-                    <div><p class="mb-10">المدير المباشر / رئيس القسم</p><p>............................</p></div>
-                    <div><p class="mb-10">يعتمد / المدير المالي والإداري</p><p>............................</p></div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-right border-collapse">
+                        <thead>
+                            <tr class="bg-slate-100 border-b text-xs text-slate-800">
+                                <th class="p-2.5">نوع الإجازة</th>
+                                <th class="p-2.5">من تاريخ</th>
+                                <th class="p-2.5">إلى تاريخ</th>
+                                <th class="p-2.5">الأيام</th>
+                                <th class="p-2.5">تاريخ التسجيل</th>
+                                <th class="p-2.5 text-center">الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="empLeavesHistoryBody">
+                            <tr><td colspan="6" class="p-4 text-center text-gray-400 text-xs">اختر موظفاً لعرض سجل إجازاته</td></tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </section>
 
-        <!-- القسم 4: إدارة السلف والأقساط الشهرية -->
+        <!-- القسم 3: إدارة السلف -->
         <section id="section-advances" class="hidden no-print">
             <div id="advFormContainer" class="bg-white p-6 rounded-xl shadow mb-8">
                 <h2 class="text-xl font-bold text-teal-900 border-b pb-2 mb-4">تسجيل وإدارة السلف والأقساط الشهرية</h2>
@@ -320,7 +301,7 @@
             </div>
         </section>
 
-        <!-- القسم 5: الجزاءات والإنذارات وساعات التأخير -->
+        <!-- القسم 4: الجزاءات والإنذارات -->
         <section id="section-penalties" class="hidden no-print">
             <div id="penFormContainer" class="bg-white p-6 rounded-xl shadow mb-8">
                 <h2 class="text-xl font-bold text-red-800 border-b pb-2 mb-4">الجزاءات والإنذارات وساعات التأخير</h2>
@@ -342,7 +323,7 @@
             </div>
         </section>
 
-        <!-- القسم 6: مسير الرواتب (استحقاق يوم 28) -->
+        <!-- القسم 5: مسير الرواتب -->
         <section id="section-payroll" class="hidden">
             <div class="bg-white p-6 rounded-xl shadow mb-8 no-print">
                 <div class="flex flex-wrap justify-between items-center border-b pb-3 mb-6 gap-4">
@@ -480,7 +461,7 @@
             </div>
         </section>
 
-        <!-- القسم 7: تسوية المؤقتين -->
+        <!-- القسم 6: تسوية المؤقتين -->
         <section id="section-settlement" class="hidden no-print">
             <div class="bg-white p-6 rounded-xl shadow mb-8">
                 <h2 class="text-xl font-bold mb-4 text-emerald-800 border-b pb-2">إصدار إذن صرف للمؤقتين</h2>
@@ -497,7 +478,7 @@
             </div>
         </section>
 
-        <!-- القسم 8: التقارير والكشوف -->
+        <!-- القسم 7: مركز التقارير -->
         <section id="section-reports" class="hidden">
             <div class="bg-white p-6 rounded-xl shadow mb-6 no-print">
                 <h2 class="text-xl font-bold text-amber-900 border-b pb-2 mb-4">مركز التقارير والكشوف الرقابية المعتمدة</h2>
@@ -547,7 +528,7 @@
             </div>
         </section>
 
-        <!-- القسم 9: المستخدمين والصلاحيات -->
+        <!-- القسم 8: المستخدمين والصلاحيات -->
         <section id="section-users" class="hidden no-print">
             <div class="bg-white p-6 rounded-xl shadow mb-8">
                 <h2 class="text-xl font-bold text-purple-900 border-b pb-2 mb-4">إضافة مستخدم جديد وتحديد الصلاحية</h2>
@@ -605,7 +586,7 @@
         </div>
     </div>
 
-    <!-- السكربت الشامل والمحدث بالكامل -->
+    <!-- السكربت الشامل والمحدث -->
     <script>
         async function handleLogin(e) {
             e.preventDefault();
@@ -867,7 +848,9 @@
             else { alert('تم الحذف بنجاح.'); loadEmployees(); }
         }
 
-        /* ------------------ منظومة الإجازات التراكمية الدقيقة ------------------ */
+        /* ------------------ منظومة الإجازات والراحات المحسنة ------------------ */
+        let currentEmpLeavesList = [];
+
         function calculateEmployeeTier(emp) {
             const today = new Date();
             let age = 0;
@@ -912,7 +895,6 @@
             const opening = b ? parseFloat(b.opening_balance || 0) : 0;
             document.getElementById('opening_balance_input').value = opening;
 
-            // حساب الأشهر المكتسبة من بداية سبتمبر (شهر 9)
             const today = new Date();
             const currentMonth = today.getMonth() + 1;
             let accruedMonths = 0;
@@ -922,11 +904,17 @@
             const accruedNew = accruedMonths * tier.monthlyRate;
             const totalEntitled = opening + accruedNew;
 
-            // حساب المستهلك (باستثناء الإجازات المرضية)
-            const { data: empLeaves } = await client.from('leaves').select('*').eq('employee_id', empId).neq('leave_type', 'SICK');
+            // جلب سجل الإجازات المسجلة بالكامل لهذا الموظف
+            const { data: empLeaves } = await client.from('leaves').select('*').eq('employee_id', empId).order('start_date', { ascending: false });
+            currentEmpLeavesList = empLeaves || [];
+
             let used = 0;
             if (empLeaves && empLeaves.length > 0) {
-                empLeaves.forEach(l => { used += parseFloat(l.days_count || 0); });
+                empLeaves.forEach(l => {
+                    if (l.leave_type !== 'SICK') {
+                        used += parseFloat(l.days_count || 0);
+                    }
+                });
             }
 
             const remaining = totalEntitled - used;
@@ -934,6 +922,42 @@
             document.getElementById('bal_total_entitled').innerText = totalEntitled.toFixed(2);
             document.getElementById('bal_used').innerText = used.toFixed(2);
             document.getElementById('bal_remaining').innerText = remaining.toFixed(2);
+
+            // عرض سجل الإجازات في جدول المراجعة والحذف
+            renderEmpLeavesHistory();
+        }
+
+        function renderEmpLeavesHistory() {
+            const tbody = document.getElementById('empLeavesHistoryBody');
+            if (!currentEmpLeavesList || currentEmpLeavesList.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-gray-400 text-xs">لا توجد إجازات مسجلة لهذا الموظف بعد</td></tr>`;
+                return;
+            }
+
+            const typeMap = {
+                'ANNUAL': 'سنوية / اعتيادية',
+                'CASUAL': 'عارضة',
+                'SICK': 'مرضية',
+                'UNPAID': 'بدون مرتب'
+            };
+
+            tbody.innerHTML = currentEmpLeavesList.map(l => `
+                <tr class="border-b hover:bg-slate-50 text-xs">
+                    <td class="p-2.5 font-bold text-teal-900">${typeMap[l.leave_type] || l.leave_type}</td>
+                    <td class="p-2.5 font-mono">${l.start_date}</td>
+                    <td class="p-2.5 font-mono">${l.end_date}</td>
+                    <td class="p-2.5 font-bold font-mono text-slate-800">${l.days_count} يوم</td>
+                    <td class="p-2.5 text-gray-500 text-[11px]">${l.created_at ? l.created_at.slice(0, 10) : '-'}</td>
+                    <td class="p-2.5 text-center flex justify-center gap-1.5">
+                        <button onclick="reprintLeaveFromHistory(${l.id})" class="bg-gray-100 text-gray-800 border hover:bg-gray-200 px-2 py-1 rounded text-xs font-bold">
+                            طباعة 🖨️
+                        </button>
+                        <button onclick="deleteOrCancelLeave(${l.id}, ${l.days_count}, '${l.start_date}', '${l.end_date}')" class="bg-red-50 text-red-700 border border-red-300 hover:bg-red-600 hover:text-white px-2 py-1 rounded text-xs font-bold">
+                            إلغاء / حذف 🗑️
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
         }
 
         async function updateOpeningBalance() {
@@ -982,7 +1006,21 @@
                 return;
             }
 
-            // فحص كفاية الرصيد إذا كانت سنوية أو عارضة
+            // فحص منع تكرار أو تداخل تواريخ الإجازات لنفس الموظف
+            const newStart = new Date(sVal);
+            const newEnd = new Date(eVal);
+
+            const hasOverlap = currentEmpLeavesList.find(l => {
+                const existStart = new Date(l.start_date);
+                const existEnd = new Date(l.end_date);
+                return (newStart <= existEnd && newEnd >= existStart);
+            });
+
+            if (hasOverlap) {
+                alert(`⚠️ تنبيه رقابي:\nتوجد إجازة مسجلة مسبقاً لهذا الموظف تتعارض أو تتداخل مع هذه الفترة:\n(من ${hasOverlap.start_date} إلى ${hasOverlap.end_date} - ${hasOverlap.days_count} يوم).\n\nلا يمكن تكرار تسجيل إجازة لنفس التواريخ!`);
+                return;
+            }
+
             if (type === 'ANNUAL' || type === 'CASUAL') {
                 const curRem = parseFloat(document.getElementById('bal_remaining').innerText) || 0;
                 if (days > curRem) {
@@ -1010,42 +1048,169 @@
             }
         }
 
-       function printLeaveRequest() {
+        async function deleteOrCancelLeave(leaveId, days, sDate, eDate) {
+            if (!confirm(`هل أنت متأكد من إلغاء وحذف الإجازة المسجلة من ${sDate} إلى ${eDate} (${days} يوم)؟\nسيتم استرجاع رصيد الأيام للموظف فوراً.`)) {
+                return;
+            }
+
+            const { error } = await client.from('leaves').delete().eq('id', leaveId);
+            if (error) {
+                alert('خطأ أثناء حذف الإجازة: ' + error.message);
+            } else {
+                alert('تم إلغاء الإجازة بنجاح واسترداد رصيد الموظف!');
+                loadEmployeeLeaveBalance();
+            }
+        }
+
+        // نافذة طباعة مباشرة تقضي نهائياً على مشكلة الورقة البيضاء
+        function printLeaveDirectWindow() {
             const empId = document.getElementById('leave_emp').value;
             const emp = allEmployees.find(e => e.id == empId);
             if (!emp) return alert('يرجى اختيار الموظف أولاً');
 
-            const sVal = document.getElementById('leave_start').value;
-            const eVal = document.getElementById('leave_end').value;
-            const days = document.getElementById('leave_days_count').value;
+            const sVal = document.getElementById('leave_start').value || '-';
+            const eVal = document.getElementById('leave_end').value || '-';
+            const days = document.getElementById('leave_days_count').value || '0';
             const typeSelect = document.getElementById('leave_type');
             const typeText = typeSelect.options[typeSelect.selectedIndex].text;
             const sub = document.getElementById('leave_substitute').value || 'لا يوجد';
 
-            document.getElementById('lp_print_date').innerText = new Date().toLocaleDateString('ar-EG');
-            document.getElementById('lp_ref_no').innerText = 'LV-' + Date.now().toString().slice(-6);
-            document.getElementById('lp_emp_name').innerText = emp.full_name;
-            document.getElementById('lp_emp_code').innerText = emp.emp_code;
-            document.getElementById('lp_job_title').innerText = emp.job_title;
-            document.getElementById('lp_dept').innerText = emp.departments ? emp.departments.name : '-';
+            const totalEnt = document.getElementById('bal_total_entitled').innerText;
+            const used = document.getElementById('bal_used').innerText;
+            const rem = document.getElementById('bal_remaining').innerText;
 
-            document.getElementById('lp_type').innerText = typeText;
-            document.getElementById('lp_start').innerText = sVal || '-';
-            document.getElementById('lp_end').innerText = eVal || '-';
-            document.getElementById('lp_days').innerText = days;
-            document.getElementById('lp_substitute').innerText = sub;
+            generatePrintWindow({
+                empName: emp.full_name,
+                empCode: emp.emp_code,
+                jobTitle: emp.job_title,
+                dept: emp.departments ? emp.departments.name : '-',
+                typeText: typeText,
+                sVal: sVal,
+                eVal: eVal,
+                days: days,
+                sub: sub,
+                totalEnt: totalEnt,
+                used: used,
+                rem: rem,
+                refNo: 'LV-' + Date.now().toString().slice(-6)
+            });
+        }
 
-            document.getElementById('lp_total_ent').innerText = document.getElementById('bal_total_entitled').innerText;
-            document.getElementById('lp_used').innerText = document.getElementById('bal_used').innerText;
-            document.getElementById('lp_rem').innerText = document.getElementById('bal_remaining').innerText;
+        function reprintLeaveFromHistory(leaveId) {
+            const l = currentEmpLeavesList.find(item => item.id === leaveId);
+            if (!l) return;
+            const empId = document.getElementById('leave_emp').value;
+            const emp = allEmployees.find(e => e.id == empId);
 
-            const printArea = document.getElementById('leavePrintArea');
-            printArea.classList.remove('hidden');
+            const typeMap = {
+                'ANNUAL': 'اعتيادية / سنوية (شاملة الجمع والراحات)',
+                'CASUAL': 'عارضة (تخصم من الرصيد)',
+                'SICK': 'مرضية (لا تخصم من الرصيد)',
+                'UNPAID': 'بدون مرتب (إجازة خاصة)'
+            };
 
-            setTimeout(() => {
-                window.print();
-                printArea.classList.add('hidden');
-            }, 200);
+            generatePrintWindow({
+                empName: emp.full_name,
+                empCode: emp.emp_code,
+                jobTitle: emp.job_title,
+                dept: emp.departments ? emp.departments.name : '-',
+                typeText: typeMap[l.leave_type] || l.leave_type,
+                sVal: l.start_date,
+                eVal: l.end_date,
+                days: l.days_count,
+                sub: 'مسجل بالنظام',
+                totalEnt: document.getElementById('bal_total_entitled').innerText,
+                used: document.getElementById('bal_used').innerText,
+                rem: document.getElementById('bal_remaining').innerText,
+                refNo: 'LV-' + l.id
+            });
+        }
+
+        function generatePrintWindow(data) {
+            const printWin = window.open('', '', 'width=850,height=900');
+            printWin.document.write(`
+                <!DOCTYPE html>
+                <html lang="ar" dir="rtl">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>إذن إجازة رسمي - ${data.empName}</title>
+                    <style>
+                        body { font-family: 'Cairo', Arial, sans-serif; padding: 25px; color: #111827; }
+                        .box { border: 2px solid #111827; padding: 20px; border-radius: 8px; }
+                        .header { display: flex; justify-content: space-between; border-bottom: 2px solid #111827; padding-bottom: 10px; }
+                        .title-badge { text-align: center; margin: 18px 0; }
+                        .title-badge span { border: 2px solid #111827; background: #f3f4f6; padding: 6px 25px; font-size: 16px; font-weight: bold; border-radius: 4px; }
+                        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+                        .card { background: #f9fafb; border: 1px solid #e5e7eb; padding: 10px; border-radius: 4px; font-size: 13px; }
+                        .table-bal { width: 100%; border-collapse: collapse; margin: 15px 0; text-align: center; }
+                        .table-bal th, .table-bal td { border: 1px solid #111827; padding: 8px; font-size: 13px; }
+                        .table-bal th { background: #f3f4f6; }
+                        .signatures { display: grid; grid-template-columns: 1fr 1fr 1fr; text-align: center; font-size: 13px; font-weight: bold; margin-top: 40px; }
+                    </style>
+                </head>
+                <body>
+                    <div class="box">
+                        <div class="header">
+                            <div>
+                                <h2 style="margin:0; font-size: 18px;">مستشفى سينا كلينيك - شرم الشيخ</h2>
+                                <h4 style="margin:4px 0 0 0; font-size: 13px; color: #4b5563;">إدارة الموارد البشرية وشؤون العاملين</h4>
+                            </div>
+                            <div style="text-align: left; font-size: 12px; font-family: monospace;">
+                                <p style="margin:2px 0;">التاريخ: ${new Date().toLocaleDateString('ar-EG')}</p>
+                                <p style="margin:2px 0;">رقم الإذن: ${data.refNo}</p>
+                            </div>
+                        </div>
+
+                        <div class="title-badge">
+                            <span>إذن وتصريح إجازة معتمد</span>
+                        </div>
+
+                        <div class="card grid-2">
+                            <div><strong>اسم الموظف:</strong> ${data.empName}</div>
+                            <div><strong>كود الموظف:</strong> ${data.empCode}</div>
+                            <div><strong>الوظيفة:</strong> ${data.jobTitle}</div>
+                            <div><strong>القسم / الإدارة:</strong> ${data.dept}</div>
+                        </div>
+
+                        <div class="card" style="line-height: 1.8; margin-bottom: 15px;">
+                            <div><strong>نوع الإجازة المصرح بها:</strong> ${data.typeText}</div>
+                            <div><strong>الفترة:</strong> من <strong>${data.sVal}</strong> إلى <strong>${data.eVal}</strong> (شاملة الجمع والراحات المجمعة).</div>
+                            <div><strong>مدة الإجازة الإجمالية:</strong> <strong>${data.days}</strong> يوماً.</div>
+                            <div><strong>القائم بالعمل (البديل):</strong> ${data.sub}</div>
+                        </div>
+
+                        <table class="table-bal">
+                            <thead>
+                                <tr>
+                                    <th>إجمالي الرصيد المستحق (التراكمي)</th>
+                                    <th>المستهلك حتى تاريخه</th>
+                                    <th>صافي الرصيد المتبقي المتاح</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong>${data.totalEnt}</strong> يوم</td>
+                                    <td style="color: #b91c1c;"><strong>${data.used}</strong> يوم</td>
+                                    <td style="color: #047857; font-size: 15px;"><strong>${data.rem}</strong> يوم</td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <div class="signatures">
+                            <div><p style="margin-bottom: 50px;">توقيع الموظف</p><p>............................</p></div>
+                            <div><p style="margin-bottom: 50px;">المدير المباشر / رئيس القسم</p><p>............................</p></div>
+                            <div><p style="margin-bottom: 50px;">يعتمد / المدير المالي والإداري</p><p>............................</p></div>
+                        </div>
+                    </div>
+                    <script>
+                        window.onload = function() {
+                            window.print();
+                        };
+                    <\/script>
+                </body>
+                </html>
+            `);
+            printWin.document.close();
         }
 
         /* ------------------ إدارة السلف ------------------ */
