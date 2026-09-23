@@ -1372,8 +1372,8 @@
                 const insEmp = insured > 0 ? (insured * 0.10) : 0;
                 const insComp = insured > 0 ? (insured * 0.1475) : 0;
 
-                const uhisEmp = gross * 0.01;
-                const uhisComp = gross * 0.04;
+                const uhisEmp = insured > 0 ? (gross * 0.01) : 0;
+const uhisComp = insured > 0 ? (gross * 0.04) : 0;
 
                 let penAmount = 0;
                 if (month) {
@@ -1553,8 +1553,8 @@
                 const insured = parseFloat(emp.insured_salary) || 0;
                 const insEmp = insured > 0 ? (insured * 0.10) : 0;
                 const insComp = insured > 0 ? (insured * 0.1475) : 0;
-                const uhisEmp = gross * 0.01;
-                const uhisComp = gross * 0.04;
+                const uhisEmp = insured > 0 ? (gross * 0.01) : 0;
+const uhisComp = insured > 0 ? (gross * 0.04) : 0;
 
                 const { data: pens } = await client.from('penalties').select('*').eq('employee_id', emp.id).eq('deducted_in_month', month);
                 let penDays = 0, delayHours = 0;
