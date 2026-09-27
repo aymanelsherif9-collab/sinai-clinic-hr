@@ -506,10 +506,11 @@
                         <label class="block text-sm font-semibold mb-1">نوع التقرير</label>
                         <select id="report_type" class="w-full border p-2 rounded font-bold text-teal-900" onchange="toggleReportFilters()">
                             <option value="PAYROLL_MASTER">كشف المرتبات والأجور الشامل (Payroll Sheet)</option>
-                            <option value="LEAVES_SUMMARY">تقرير الموقف الرقابي لأرصدة الإجازات التراكمية</option>
-                            <option value="PENALTIES_PERIOD">تقرير الجزاءات والإنذارات حسب الفترة</option>
-                            <option value="PERMANENT_STAFF">تقرير العاملين الدائمين وبيانات العقود والبدلات</option>
-                            <option value="TEMPORARY_STAFF">تقرير العمالة المؤقتة</option>
+                        <option value="LEAVES_SUMMARY">تقرير الموقف الرقابي لأرصدة الإجازات التراكمية</option>
+                        <option value="ADVANCES_SUMMARY">تقرير الموقف الرقابي للسلف والأقساط المستحقة</option>
+                        <option value="PENALTIES_PERIOD">تقرير الجزاءات والإنذارات حسب الفترة</option>
+                        <option value="PERMANENT_STAFF">تقرير العاملين الدائمين وبيانات العقود والبدلات</option>
+                        <option value="TEMPORARY_STAFF">تقرير العمالة المؤقتة</option>
                         </select>
                     </div>
                     <div id="filter_month_div">
@@ -1602,7 +1603,8 @@
 
         function toggleReportFilters() {
             const t = document.getElementById('report_type').value;
-            document.getElementById('filter_month_div').classList.toggle('hidden', t === 'PENALTIES_PERIOD' || t === 'LEAVES_SUMMARY');
+            // إظهار وإخفاء الفلاتر بحسب التقرير المطلوب
+            document.getElementById('filter_month_div').classList.toggle('hidden', t === 'PENALTIES_PERIOD' || t === 'LEAVES_SUMMARY' || t === 'ADVANCES_SUMMARY' || t === 'PERMANENT_STAFF');
             document.getElementById('filter_dates_div').classList.toggle('hidden', t !== 'PENALTIES_PERIOD');
         }
 
@@ -1611,28 +1613,43 @@
             const thead = document.getElementById('reportTableHead');
             const tbody = document.getElementById('reportTableBody');
             const title = document.getElementById('reportTitleHeader');
-            tbody.innerHTML = `<tr><td colspan="10" class="text-center p-4">جاري تحميل التقرير...</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="10" class="text-center p-4">جاري تحميل وتجهيز بيانات التقرير...</td></tr>`;
 
-            if(type === 'PAYROLL_MASTER') {
+            if (type === 'PAYROLL_MASTER') {
                 const m = document.getElementById('rep_month').value;
-                title.innerText = `مسير الرواتب المعتمد لشهر ${m} (استحقاق 28)`;
-                thead.innerHTML = `<tr><th class="p-2 border">الكود</th><th class="p-2 border">الاسم</th><th class="p-2 border">الوظيفة</th><th class="p-2 border">الأساسي</th><th class="p-2 border">البدلات التعاقدية</th><th class="p-2 border">المكافآت</th><th class="p-2 border">تأمينات (10%)</th><th class="p-2 border">صحي (1%)</th><th class="p-2 border">الخصومات والسلف</th><th class="p-2 border bg-teal-50">الصافي</th></tr>`;
+                title.innerText = `مسير الرواتب والأجور الشامل لشهر ${m} (استحقاق 28)`;
+                thead.innerHTML = `
+                    <tr class="bg-teal-50 border-b">
+                        <th class="p-2 border">الكود</th>
+                        <th class="p-2 border">اسم الموظف</th>
+                        <th class="p-2 border">الوظيفة</th>
+                        <th class="p-2 border">الأساسي</th>
+                        <th class="p-2 border">البدلات التعاقدية</th>
+                        <th class="p-2 border">المكافآت</th>
+                        <th class="p-2 border">تأمينات (10%)</th>
+                        <th class="p-2 border">صحي (1%)</th>
+                        <th class="p-2 border">الخصومات والسلف</th>
+                        <th class="p-2 border bg-teal-100 font-bold">الصافي المستحق</th>
+                    </tr>
+                `;
                 const { data: rows } = await client.from('monthly_payrolls').select('*, employees(emp_code, full_name, job_title)').eq('payroll_month', m);
-                if(!rows || rows.length === 0) return tbody.innerHTML = `<tr><td colspan="10" class="text-center p-4 text-gray-500">لا يوجد كشف رواتب محفوظ لهذا الشهر</td></tr>`;
+                if (!rows || rows.length === 0) return tbody.innerHTML = `<tr><td colspan="10" class="text-center p-4 text-gray-500">لا يوجد كشف رواتب معتمد ومحفوظ لهذا الشهر</td></tr>`;
+                
                 tbody.innerHTML = rows.map(r => `
-                    <tr class="border-b text-xs">
+                    <tr class="border-b text-xs hover:bg-gray-50">
                         <td class="p-2 border font-mono">${r.employees ? r.employees.emp_code : '-'}</td>
                         <td class="p-2 border font-bold">${r.employees ? r.employees.full_name : '-'}</td>
                         <td class="p-2 border">${r.employees ? r.employees.job_title : '-'}</td>
-                        <td class="p-2 border">${r.basic_salary}</td>
-                        <td class="p-2 border text-blue-700">${(r.allowances - (r.bonuses || 0)).toFixed(2)}</td>
-                        <td class="p-2 border text-amber-700 font-bold">${r.bonuses || 0}</td>
-                        <td class="p-2 border text-red-600">${r.social_insurance_employee}</td>
-                        <td class="p-2 border text-red-600">${r.uhis_employee}</td>
+                        <td class="p-2 border">${parseFloat(r.basic_salary).toFixed(2)}</td>
+                        <td class="p-2 border text-blue-700 font-semibold">${(r.allowances - (r.bonuses || 0)).toFixed(2)}</td>
+                        <td class="p-2 border text-amber-700 font-bold">${parseFloat(r.bonuses || 0).toFixed(2)}</td>
+                        <td class="p-2 border text-red-600">${parseFloat(r.social_insurance_employee).toFixed(2)}</td>
+                        <td class="p-2 border text-red-600">${parseFloat(r.uhis_employee).toFixed(2)}</td>
                         <td class="p-2 border text-red-600">${(r.penalties_deduction + r.advances_deduction + r.housing_deduction + r.meal_deduction + r.other_services_deduction + r.fellowship_fund_deduction).toFixed(2)}</td>
-                        <td class="p-2 border font-bold text-teal-800 bg-teal-50">${r.net_salary}</td>
+                        <td class="p-2 border font-bold text-teal-900 bg-teal-50 text-sm">${parseFloat(r.net_salary).toFixed(2)} ج.م</td>
                     </tr>
                 `).join('');
+
             } else if (type === 'LEAVES_SUMMARY') {
                 title.innerText = 'تقرير الموقف الرقابي لأرصدة الإجازات والراحات المجمعة للعاملين';
                 thead.innerHTML = `
@@ -1681,24 +1698,126 @@
                         </tr>
                     `;
                 }).join('');
-            } else if(type === 'PERMANENT_STAFF') {
+
+            } else if (type === 'ADVANCES_SUMMARY') {
+                title.innerText = 'تقرير الموقف الرقابي لسلف وأقساط العاملين';
+                thead.innerHTML = `
+                    <tr class="bg-amber-50 border-b">
+                        <th class="p-2 border">كود الموظف</th>
+                        <th class="p-2 border">اسم الموظف</th>
+                        <th class="p-2 border">نوع السلفة</th>
+                        <th class="p-2 border">إجمالي المبلغ</th>
+                        <th class="p-2 border text-red-700">القسط الشهري</th>
+                        <th class="p-2 border text-emerald-700">المسدد حتى الآن</th>
+                        <th class="p-2 border text-amber-900 bg-amber-100 font-bold">الرصيد المتبقي</th>
+                        <th class="p-2 border">شهر البدء</th>
+                        <th class="p-2 border text-center">الحالة</th>
+                    </tr>
+                `;
+
+                const { data: advs } = await client.from('employee_advances').select('*, employees(emp_code, full_name)').order('id', { ascending: false });
+                if (!advs || advs.length === 0) {
+                    return tbody.innerHTML = `<tr><td colspan="9" class="text-center p-4 text-gray-500">لا توجد سلف مسجلة بالنظام</td></tr>`;
+                }
+
+                tbody.innerHTML = advs.map(a => {
+                    const total = parseFloat(a.total_amount) || 0;
+                    const rem = parseFloat(a.remaining_balance) || 0;
+                    const paid = total - rem;
+                    return `
+                        <tr class="border-b text-xs hover:bg-gray-50">
+                            <td class="p-2 border font-mono">${a.employees ? a.employees.emp_code : '-'}</td>
+                            <td class="p-2 border font-bold text-gray-900">${a.employees ? a.employees.full_name : '-'}</td>
+                            <td class="p-2 border font-semibold">${a.advance_type === 'MONTHLY' ? 'سلفة شهرية' : 'سلفة مستديمة'}</td>
+                            <td class="p-2 border font-bold">${total.toFixed(2)} ج.م</td>
+                            <td class="p-2 border text-red-600 font-bold">${parseFloat(a.monthly_installment).toFixed(2)} ج.م</td>
+                            <td class="p-2 border text-emerald-700 font-semibold">${paid.toFixed(2)} ج.م</td>
+                            <td class="p-2 border font-bold text-amber-900 bg-amber-50">${rem.toFixed(2)} ج.م</td>
+                            <td class="p-2 border font-mono">${a.start_month}</td>
+                            <td class="p-2 border text-center">
+                                <span class="${a.status === 'ACTIVE' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'} px-2 py-0.5 rounded text-[11px] font-bold">
+                                    ${a.status === 'ACTIVE' ? 'سارية' : 'مسددة بالكامل'}
+                                </span>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+
+            } else if (type === 'PENALTIES_PERIOD') {
+                const fromD = document.getElementById('rep_from_date').value;
+                const toD = document.getElementById('rep_to_date').value;
+                title.innerText = (fromD && toD) ? `تقرير الجزاءات والإنذارات من ${fromD} إلى ${toD}` : `تقرير الجزاءات والإنذارات المسجلة`;
+                thead.innerHTML = `
+                    <tr class="bg-red-50 border-b">
+                        <th class="p-2 border">كود الموظف</th>
+                        <th class="p-2 border">اسم الموظف</th>
+                        <th class="p-2 border">الوظيفة</th>
+                        <th class="p-2 border">نوع الإجراء</th>
+                        <th class="p-2 border">تاريخ المخالفة</th>
+                        <th class="p-2 border">سبب المخالفة</th>
+                        <th class="p-2 border text-red-700">قيمة الخصم</th>
+                        <th class="p-2 border">شهر الخصم</th>
+                        <th class="p-2 border">رقم التحقيق</th>
+                    </tr>
+                `;
+
+                let query = client.from('penalties').select('*, employees(emp_code, full_name, job_title)').order('violation_date', { ascending: false });
+                if (fromD) query = query.gte('violation_date', fromD);
+                if (toD) query = query.lte('violation_date', toD);
+
+                const { data: pens } = await query;
+                if (!pens || pens.length === 0) {
+                    return tbody.innerHTML = `<tr><td colspan="9" class="text-center p-4 text-gray-500">لا توجد جزاءات أو إنذارات مسجلة لهذه الفترة</td></tr>`;
+                }
+
+                tbody.innerHTML = pens.map(p => {
+                    let dedText = 'إنذار كتابي';
+                    if (p.penalty_type === 'DAYS') dedText = `${p.penalty_days} يوم`;
+                    if (p.penalty_type === 'HOURS') dedText = `${p.delay_hours} ساعة`;
+                    return `
+                        <tr class="border-b text-xs hover:bg-gray-50">
+                            <td class="p-2 border font-mono">${p.employees ? p.employees.emp_code : '-'}</td>
+                            <td class="p-2 border font-bold text-gray-900">${p.employees ? p.employees.full_name : '-'}</td>
+                            <td class="p-2 border">${p.employees ? p.employees.job_title : '-'}</td>
+                            <td class="p-2 border font-semibold">${p.penalty_type === 'WARNING' ? 'إنذار' : (p.penalty_type === 'HOURS' ? 'ساعات تأخير' : 'خصم أيام')}</td>
+                            <td class="p-2 border font-mono">${p.violation_date}</td>
+                            <td class="p-2 border">${p.violation_reason}</td>
+                            <td class="p-2 border font-bold text-red-600">${dedText}</td>
+                            <td class="p-2 border font-mono">${p.deducted_in_month}</td>
+                            <td class="p-2 border">${p.investigation_ref || '-'}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+            } else if (type === 'PERMANENT_STAFF') {
                 title.innerText = 'دليل العاملين الدائمين وبيانات العقود والبدلات الثابتة';
                 thead.innerHTML = `<tr><th class="p-2 border">الكود</th><th class="p-2 border">الاسم</th><th class="p-2 border">الوظيفة</th><th class="p-2 border">المحمول</th><th class="p-2 border">المؤهل</th><th class="p-2 border">الأساسي</th><th class="p-2 border">الشامل</th><th class="p-2 border">إجمالي البدلات الثابتة</th></tr>`;
                 const perms = allEmployees.filter(e => e.emp_type === 'PERMANENT');
                 tbody.innerHTML = perms.map(e => `
-                    <tr class="border-b text-xs">
+                    <tr class="border-b text-xs hover:bg-gray-50">
                         <td class="p-2 border font-mono">${e.emp_code}</td>
                         <td class="p-2 border font-bold">${e.full_name}</td>
                         <td class="p-2 border">${e.job_title}</td>
-                        <td class="p-2 border">${e.phone || '-'}</td>
+                        <td class="p-2 border font-mono">${e.phone || '-'}</td>
                         <td class="p-2 border">${e.education_qualification || '-'}</td>
-                        <td class="p-2 border">${e.basic_salary}</td>
-                        <td class="p-2 border text-amber-800 font-bold">${e.gross_salary || e.basic_salary}</td>
+                        <td class="p-2 border">${parseFloat(e.basic_salary).toFixed(2)}</td>
+                        <td class="p-2 border text-amber-800 font-bold">${parseFloat(e.gross_salary || e.basic_salary).toFixed(2)}</td>
                         <td class="p-2 border text-blue-700 font-bold">${(parseFloat(e.fixed_housing_allowance || 0) + parseFloat(e.fixed_transport_allowance || 0) + parseFloat(e.fixed_supervision_allowance || 0) + parseFloat(e.fixed_food_allowance || 0) + parseFloat(e.fixed_overtime_allowance || 0)).toFixed(2)}</td>
                     </tr>
                 `).join('');
+
             } else {
-                tbody.innerHTML = `<tr><td colspan="10" class="text-center p-4">التقرير متاح ومعتمد للعرض</td></tr>`;
+                title.innerText = 'تقرير العمالة المؤقتة واليوميات';
+                thead.innerHTML = `<tr><th class="p-2 border">الكود</th><th class="p-2 border">الاسم</th><th class="p-2 border">الوظيفة</th><th class="p-2 border">فئة اليومية / الشفت</th></tr>`;
+                const temps = allEmployees.filter(e => e.emp_type !== 'PERMANENT');
+                tbody.innerHTML = temps.map(e => `
+                    <tr class="border-b text-xs hover:bg-gray-50">
+                        <td class="p-2 border font-mono">${e.emp_code}</td>
+                        <td class="p-2 border font-bold">${e.full_name}</td>
+                        <td class="p-2 border">${e.job_title}</td>
+                        <td class="p-2 border font-bold text-emerald-800">${parseFloat(e.basic_salary).toFixed(2)} ج.م</td>
+                    </tr>
+                `).join('');
             }
         }
 
