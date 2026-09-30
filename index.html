@@ -4,8 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>مستشفى سينا كلينيك - شؤون العاملين</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+   <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- مكتبة تصدير ملفات Excel -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Cairo', sans-serif; }
@@ -149,7 +151,27 @@
                             <div><label class="block text-xs font-bold text-gray-600 mb-1">إضافي تعاقدي ثابت (ج.م)</label><input type="number" id="fixed_overtime_allowance" value="0" step="0.01" class="w-full border p-2 rounded text-sm"></div>
                         </div>
                     </div>
-
+<!-- بيانات طريقة استلام الراتب والحساب البنكي -->
+                    <div class="bg-blue-50 p-4 rounded-xl border border-blue-200 mt-4">
+                        <h4 class="font-bold text-blue-900 text-sm mb-3">طريقة استلام الراتب والبيانات البنكية:</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-700 mb-1">طريقة الصرف المعتمدة</label>
+                                <select id="payment_method" class="w-full border p-2 rounded text-sm font-bold text-blue-900 bg-white" onchange="toggleBankFields()">
+                                    <option value="cash">صرف نقدي (خزينة المستشفى)</option>
+                                    <option value="bank">تحويل بنكي (حساب بنكي)</option>
+                                </select>
+                            </div>
+                            <div id="div_bank_name" class="hidden">
+                                <label class="block text-xs font-bold text-gray-700 mb-1">اسم البنك</label>
+                                <input type="text" id="bank_name" class="w-full border p-2 rounded text-sm bg-white" placeholder="مثال: البنك الأهلي المصري / بنك مصر">
+                            </div>
+                            <div id="div_bank_account" class="hidden">
+                                <label class="block text-xs font-bold text-gray-700 mb-1">رقم الحساب البنكي / IBAN</label>
+                                <input type="text" id="bank_account_number" class="w-full border p-2 rounded text-sm font-mono bg-white" placeholder="رقم الحساب أو الآيبان">
+                            </div>
+                        </div>
+                    </div>
                     <div class="text-left flex justify-end gap-2 pt-2">
                         <button type="button" id="cancelEditBtn" onclick="cancelEdit()" class="hidden bg-gray-200 text-gray-800 px-5 py-2 rounded-lg font-bold hover:bg-gray-300 transition">إلغاء التعديل</button>
                         <button type="submit" id="saveEmpBtn" class="bg-teal-700 text-white px-6 py-2 rounded-lg font-bold hover:bg-teal-800 transition">حفظ الموظف بالسجلات</button>
@@ -513,16 +535,26 @@
                         <option value="TEMPORARY_STAFF">تقرير العمالة المؤقتة</option>
                         </select>
                     </div>
-                    <div id="filter_month_div">
+                   <div id="filter_month_div">
                         <label class="block text-sm font-semibold mb-1">الشهر المستهدف</label>
                         <input type="month" id="rep_month" class="w-full border p-2 rounded">
+                    </div>
+                    <!-- فلتر طريقة الصرف لكشف الرواتب -->
+                    <div id="filter_payment_method_div">
+                        <label class="block text-sm font-semibold mb-1">جهة الصرف</label>
+                        <select id="rep_payment_filter" class="w-full border p-2 rounded font-semibold text-teal-900" onchange="generateReport()">
+                            <option value="ALL">عرض الكل (شامل)</option>
+                            <option value="bank">تحويلات بنكية فقط 🏦</option>
+                            <option value="cash">صرف نقدي خزينة 💵</option>
+                        </select>
                     </div>
                     <div id="filter_dates_div" class="hidden col-span-2 grid grid-cols-2 gap-2">
                         <div><label class="block text-sm font-semibold mb-1">من تاريخ</label><input type="date" id="rep_from_date" class="w-full border p-2 rounded"></div>
                         <div><label class="block text-sm font-semibold mb-1">إلى تاريخ</label><input type="date" id="rep_to_date" class="w-full border p-2 rounded"></div>
                     </div>
-                    <div class="flex gap-2">
-                        <button onclick="generateReport()" class="bg-amber-600 text-white px-5 py-2 rounded-lg font-bold hover:bg-amber-700 transition flex-1">عرض التقرير</button>
+                    <div class="flex gap-2 flex-wrap md:flex-nowrap">
+                        <button onclick="generateReport()" class="bg-amber-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-amber-700 transition flex-1">عرض</button>
+                        <button id="btnExportExcel" onclick="exportPayrollToExcel()" class="bg-emerald-700 text-white px-4 py-2 rounded-lg font-bold hover:bg-emerald-800 transition flex items-center gap-1">Excel 📊</button>
                         <button onclick="window.print()" class="bg-teal-700 text-white px-4 py-2 rounded-lg font-bold hover:bg-teal-800 transition">طباعة 🖨️</button>
                     </div>
                 </div>
@@ -775,6 +807,12 @@
                 </tr>
             `}).join('');
         }
+function toggleBankFields() {
+            const method = document.getElementById('payment_method').value;
+            const isBank = (method === 'bank');
+            document.getElementById('div_bank_name').classList.toggle('hidden', !isBank);
+            document.getElementById('div_bank_account').classList.toggle('hidden', !isBank);
+        }
 
         function startEditEmployee(empId) {
             const emp = allEmployees.find(e => e.id === empId);
@@ -802,7 +840,10 @@
             document.getElementById('fixed_supervision_allowance').value = emp.fixed_supervision_allowance || 0;
             document.getElementById('fixed_food_allowance').value = emp.fixed_food_allowance || 0;
             document.getElementById('fixed_overtime_allowance').value = emp.fixed_overtime_allowance || 0;
-
+document.getElementById('payment_method').value = emp.payment_method || 'cash';
+            document.getElementById('bank_name').value = emp.bank_name || '';
+            document.getElementById('bank_account_number').value = emp.bank_account_number || '';
+            toggleBankFields();
             document.getElementById('empFormTitle').innerText = `تعديل ملف الموظف: ${emp.full_name}`;
             document.getElementById('editModeIndicator').classList.remove('hidden');
             document.getElementById('cancelEditBtn').classList.remove('hidden');
@@ -813,6 +854,8 @@
 
         function cancelEdit() {
             document.getElementById('empForm').reset();
+document.getElementById('payment_method').value = 'cash';
+            toggleBankFields();
             document.getElementById('editing_emp_id').value = '';
             document.getElementById('empFormTitle').innerText = 'إضافة موظف جديد واستيفاء العقد';
             document.getElementById('editModeIndicator').classList.add('hidden');
@@ -826,6 +869,10 @@
             const editId = document.getElementById('editing_emp_id').value;
             const bSal = parseFloat(document.getElementById('basic_salary').value) || 0;
             const gSal = parseFloat(document.getElementById('gross_salary').value);
+
+            const payMethod = document.getElementById('payment_method').value;
+            const bName = payMethod === 'bank' ? document.getElementById('bank_name').value.trim() : null;
+            const bAcc = payMethod === 'bank' ? document.getElementById('bank_account_number').value.trim() : null;
 
             const payload = {
                 emp_code: document.getElementById('emp_code').value,
@@ -847,7 +894,10 @@
                 fixed_transport_allowance: parseFloat(document.getElementById('fixed_transport_allowance').value) || 0,
                 fixed_supervision_allowance: parseFloat(document.getElementById('fixed_supervision_allowance').value) || 0,
                 fixed_food_allowance: parseFloat(document.getElementById('fixed_food_allowance').value) || 0,
-                fixed_overtime_allowance: parseFloat(document.getElementById('fixed_overtime_allowance').value) || 0
+                fixed_overtime_allowance: parseFloat(document.getElementById('fixed_overtime_allowance').value) || 0,
+                payment_method: payMethod,
+                bank_name: bName,
+                bank_account_number: bAcc
             };
 
             if(editId) {
@@ -1599,11 +1649,22 @@ const uhisComp = insured > 0 ? (gross * 0.04) : 0;
             toggleReportFilters();
         }
 
+        // متغير عام لتخزين بيانات مسير الرواتب الحالية لاستخدامها في التصدير لـ Excel
+        let currentPayrollReportData = [];
+
         function toggleReportFilters() {
             const t = document.getElementById('report_type').value;
-            // إظهار وإخفاء الفلاتر بحسب التقرير المطلوب
+            const isPayroll = (t === 'PAYROLL_MASTER');
+
+            // إظهار أو إخفاء الفلاتر
             document.getElementById('filter_month_div').classList.toggle('hidden', t === 'PENALTIES_PERIOD' || t === 'LEAVES_SUMMARY' || t === 'ADVANCES_SUMMARY' || t === 'PERMANENT_STAFF');
             document.getElementById('filter_dates_div').classList.toggle('hidden', t !== 'PENALTIES_PERIOD');
+            
+            // إظهار فلتر طريقة الصرف وزر Excel فقط في تقرير مسير الرواتب
+            const payFilterDiv = document.getElementById('filter_payment_method_div');
+            if (payFilterDiv) payFilterDiv.classList.toggle('hidden', !isPayroll);
+            const btnExcel = document.getElementById('btnExportExcel');
+            if (btnExcel) btnExcel.classList.toggle('hidden', !isPayroll);
         }
 
         async function generateReport() {
@@ -1611,16 +1672,24 @@ const uhisComp = insured > 0 ? (gross * 0.04) : 0;
             const thead = document.getElementById('reportTableHead');
             const tbody = document.getElementById('reportTableBody');
             const title = document.getElementById('reportTitleHeader');
-            tbody.innerHTML = `<tr><td colspan="10" class="text-center p-4">جاري تحميل وتجهيز بيانات التقرير...</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="12" class="text-center p-4">جاري تحميل وتجهيز بيانات التقرير...</td></tr>`;
 
             if (type === 'PAYROLL_MASTER') {
                 const m = document.getElementById('rep_month').value;
-                title.innerText = `مسير الرواتب والأجور الشامل لشهر ${m} (استحقاق 28)`;
+                const payFilter = document.getElementById('rep_payment_filter') ? document.getElementById('rep_payment_filter').value : 'ALL';
+                
+                let filterLabel = 'الشامل لكافة العاملين';
+                if (payFilter === 'bank') filterLabel = 'التحويلات البنكية فقط';
+                if (payFilter === 'cash') filterLabel = 'الصرف النقدي (الخزينة) فقط';
+                title.innerText = `مسير الرواتب والأجور لشهر ${m} (${filterLabel}) - استحقاق 28`;
+
                 thead.innerHTML = `
-                    <tr class="bg-teal-50 border-b">
+                    <tr class="bg-teal-50 border-b text-xs">
                         <th class="p-2 border">الكود</th>
                         <th class="p-2 border">اسم الموظف</th>
                         <th class="p-2 border">الوظيفة</th>
+                        <th class="p-2 border">طريقة الصرف</th>
+                        <th class="p-2 border">بيانات البنك / الحساب</th>
                         <th class="p-2 border">الأساسي</th>
                         <th class="p-2 border">البدلات التعاقدية</th>
                         <th class="p-2 border">المكافآت</th>
@@ -1630,23 +1699,65 @@ const uhisComp = insured > 0 ? (gross * 0.04) : 0;
                         <th class="p-2 border bg-teal-100 font-bold">الصافي المستحق</th>
                     </tr>
                 `;
-                const { data: rows } = await client.from('monthly_payrolls').select('*, employees(emp_code, full_name, job_title)').eq('payroll_month', m);
-                if (!rows || rows.length === 0) return tbody.innerHTML = `<tr><td colspan="10" class="text-center p-4 text-gray-500">لا يوجد كشف رواتب معتمد ومحفوظ لهذا الشهر</td></tr>`;
-                
-                tbody.innerHTML = rows.map(r => `
-                    <tr class="border-b text-xs hover:bg-gray-50">
-                        <td class="p-2 border font-mono">${r.employees ? r.employees.emp_code : '-'}</td>
-                        <td class="p-2 border font-bold">${r.employees ? r.employees.full_name : '-'}</td>
-                        <td class="p-2 border">${r.employees ? r.employees.job_title : '-'}</td>
-                        <td class="p-2 border">${parseFloat(r.basic_salary).toFixed(2)}</td>
-                        <td class="p-2 border text-blue-700 font-semibold">${(r.allowances - (r.bonuses || 0)).toFixed(2)}</td>
-                        <td class="p-2 border text-amber-700 font-bold">${parseFloat(r.bonuses || 0).toFixed(2)}</td>
-                        <td class="p-2 border text-red-600">${parseFloat(r.social_insurance_employee).toFixed(2)}</td>
-                        <td class="p-2 border text-red-600">${parseFloat(r.uhis_employee).toFixed(2)}</td>
-                        <td class="p-2 border text-red-600">${(r.penalties_deduction + r.advances_deduction + r.housing_deduction + r.meal_deduction + r.other_services_deduction + r.fellowship_fund_deduction).toFixed(2)}</td>
-                        <td class="p-2 border font-bold text-teal-900 bg-teal-50 text-sm">${parseFloat(r.net_salary).toFixed(2)} ج.م</td>
+
+                // جلب بيانات المسير مع حقول طريقة الصرف والبنك من جدول الموظفين
+                const { data: rows, error } = await client
+                    .from('monthly_payrolls')
+                    .select('*, employees(emp_code, full_name, job_title, payment_method, bank_name, bank_account_number)')
+                    .eq('payroll_month', m);
+
+                if (error || !rows || rows.length === 0) {
+                    currentPayrollReportData = [];
+                    return tbody.innerHTML = `<tr><td colspan="12" class="text-center p-4 text-gray-500">لا يوجد كشف رواتب معتمد ومحفوظ لهذا الشهر</td></tr>`;
+                }
+
+                // حفظ البيانات الأصلية
+                currentPayrollReportData = rows;
+
+                // تصفية السجلات حسب طريقة الصرف المختارة
+                let filteredRows = rows;
+                if (payFilter === 'bank') {
+                    filteredRows = rows.filter(r => r.employees && r.employees.payment_method === 'bank');
+                } else if (payFilter === 'cash') {
+                    filteredRows = rows.filter(r => !r.employees || r.employees.payment_method !== 'bank');
+                }
+
+                if (filteredRows.length === 0) {
+                    return tbody.innerHTML = `<tr><td colspan="12" class="text-center p-4 text-gray-500">لا توجد رواتب مسجلة تطابق التصفية المحددة (${filterLabel})</td></tr>`;
+                }
+
+                // حساب إجمالي الصافي المعروض
+                let totalNet = 0;
+
+                tbody.innerHTML = filteredRows.map(r => {
+                    const emp = r.employees || {};
+                    const method = emp.payment_method === 'bank' ? 'تحويل بنكي' : 'نقداً';
+                    const bankInfo = emp.payment_method === 'bank' ? `${emp.bank_name || '-'} <br><span class="font-mono text-[10px] text-gray-500">${emp.bank_account_number || '-'}</span>` : '-';
+                    const netVal = parseFloat(r.net_salary || 0);
+                    totalNet += netVal;
+
+                    return `
+                        <tr class="border-b text-xs hover:bg-gray-50">
+                            <td class="p-2 border font-mono font-semibold">${emp.emp_code || '-'}</td>
+                            <td class="p-2 border font-bold text-teal-950">${emp.full_name || '-'}</td>
+                            <td class="p-2 border">${emp.job_title || '-'}</td>
+                            <td class="p-2 border font-semibold ${emp.payment_method === 'bank' ? 'text-blue-700' : 'text-amber-800'}">${method}</td>
+                            <td class="p-2 border text-[11px]">${bankInfo}</td>
+                            <td class="p-2 border">${parseFloat(r.basic_salary).toFixed(2)}</td>
+                            <td class="p-2 border text-blue-700 font-semibold">${(r.allowances - (r.bonuses || 0)).toFixed(2)}</td>
+                            <td class="p-2 border text-amber-700 font-bold">${parseFloat(r.bonuses || 0).toFixed(2)}</td>
+                            <td class="p-2 border text-red-600">${parseFloat(r.social_insurance_employee).toFixed(2)}</td>
+                            <td class="p-2 border text-red-600">${parseFloat(r.uhis_employee).toFixed(2)}</td>
+                            <td class="p-2 border text-red-600">${(r.penalties_deduction + r.advances_deduction + r.housing_deduction + r.meal_deduction + r.other_services_deduction + r.fellowship_fund_deduction).toFixed(2)}</td>
+                            <td class="p-2 border font-bold text-teal-900 bg-teal-50 text-sm">${netVal.toFixed(2)} ج.م</td>
+                        </tr>
+                    `;
+                }).join('') + `
+                    <tr class="bg-gray-100 font-bold text-xs border-t-2 border-teal-800">
+                        <td colspan="11" class="p-2.5 text-left border">إجمالي صافي الرواتب المستحقة للصرف:</td>
+                        <td class="p-2.5 border text-teal-950 text-sm bg-teal-100 font-black">${totalNet.toFixed(2)} ج.م</td>
                     </tr>
-                `).join('');
+                `;
 
             } else if (type === 'LEAVES_SUMMARY') {
                 title.innerText = 'تقرير الموقف الرقابي لأرصدة الإجازات والراحات المجمعة للعاملين';
@@ -1970,6 +2081,71 @@ const uhisComp = insured > 0 ? (gross * 0.04) : 0;
             const { error } = await client.from('app_users').delete().eq('id', userId);
             if(error) alert('خطأ: ' + error.message);
             else { alert('تم حذف المستخدم بنجاح.'); loadUsersTab(); }
+        }
+/* ------------------ دالة تصدير مسير الرواتب إلى Excel ------------------ */
+        function exportPayrollToExcel() {
+            if (!currentPayrollReportData || currentPayrollReportData.length === 0) {
+                alert('لا توجد بيانات مرتبات معروضة حالياً لتصديرها. يرجى الضغط على "عرض" أولاً.');
+                return;
+            }
+
+            const month = document.getElementById('rep_month').value || 'Month';
+            const wb = XLSX.utils.book_new();
+
+            // دالة تنسيق الصفوف لكل ورقة
+            const formatDataForSheet = (list, includeBankCols = true) => {
+                return list.map((r, idx) => {
+                    const emp = r.employees || {};
+                    const isBank = (emp.payment_method === 'bank');
+                    
+                    const row = {
+                        "م": idx + 1,
+                        "كود الموظف": emp.emp_code || '-',
+                        "اسم الموظف": emp.full_name || '-',
+                        "الوظيفة": emp.job_title || '-',
+                        "طريقة الصرف": isBank ? 'تحويل بنكي' : 'نقداً (خزينة)',
+                        "الراتب الأساسي": parseFloat(r.basic_salary || 0),
+                        "البدلات التعاقدية": parseFloat((r.allowances - (r.bonuses || 0)) || 0),
+                        "الحوافز والمكافآت": parseFloat(r.bonuses || 0),
+                        "إجمالي الاستحقاق": parseFloat(r.gross_salary || 0),
+                        "تأمينات اجتماعية (عامل)": parseFloat(r.social_insurance_employee || 0),
+                        "تأمين صحي شامل (عامل)": parseFloat(r.uhis_employee || 0),
+                        "قسط السلفة": parseFloat(r.advances_deduction || 0),
+                        "الجزاءات والتأخير": parseFloat(r.penalties_deduction || 0),
+                        "خصومات وخدمات أخرى": parseFloat((r.housing_deduction + r.meal_deduction + r.other_services_deduction + r.fellowship_fund_deduction) || 0),
+                        "صافي الراتب المستحق": parseFloat(r.net_salary || 0)
+                    };
+
+                    if (includeBankCols) {
+                        row["اسم البنك"] = isBank ? (emp.bank_name || '-') : '-';
+                        row["رقم الحساب / IBAN"] = isBank ? (emp.bank_account_number || '-') : '-';
+                    }
+
+                    return row;
+                });
+            };
+
+            // 1. تبويب المسير الشامل العام
+            const allRows = formatDataForSheet(currentPayrollReportData, true);
+            const wsAll = XLSX.utils.json_to_sheet(allRows);
+            XLSX.utils.book_append_sheet(wb, wsAll, "المسير الشامل العام");
+
+            // 2. تبويب التحويلات البنكية فقط
+            const bankRowsOnly = currentPayrollReportData.filter(r => r.employees && r.employees.payment_method === 'bank');
+            if (bankRowsOnly.length > 0) {
+                const wsBank = XLSX.utils.json_to_sheet(formatDataForSheet(bankRowsOnly, true));
+                XLSX.utils.book_append_sheet(wb, wsBank, "كشف تحويلات البنك");
+            }
+
+            // 3. تبويب الصرف النقدي (الخزينة)
+            const cashRowsOnly = currentPayrollReportData.filter(r => !r.employees || r.employees.payment_method !== 'bank');
+            if (cashRowsOnly.length > 0) {
+                const wsCash = XLSX.utils.json_to_sheet(formatDataForSheet(cashRowsOnly, false));
+                XLSX.utils.book_append_sheet(wb, wsCash, "كشف الخزينة (نقدي)");
+            }
+
+            // حفظ وتحميل ملف الـ Excel مباشرة في المتصفح
+            XLSX.writeFile(wb, `Sinai_Clinic_Payroll_${month}.xlsx`);
         }
     </script>
 </body>
